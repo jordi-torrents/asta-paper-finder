@@ -17,6 +17,16 @@ from typing import (
 )
 
 import httpx
+from ai2i.chain.computation import ChainComputation, ModelRunnable
+from ai2i.chain.gemini.async_genai import AsyncChatGoogleGenAI
+from ai2i.chain.models import (
+    DEFAULT_BATCH_MAX_CONCURRENCY,
+    LLMModel,
+    LLMModelParams,
+    anthropic_model_params,
+    google_model_params,
+    openai_model_params,
+)
 from google.genai import Client
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
@@ -38,17 +48,6 @@ from tenacity.asyncio.retry import RetryBaseT as AsyncRetryBaseT
 from tenacity.retry import RetryBaseT
 from tenacity.stop import StopBaseT
 from tenacity.wait import WaitBaseT
-
-from ai2i.chain.computation import ChainComputation, ModelRunnable
-from ai2i.chain.gemini.async_genai import AsyncChatGoogleGenAI
-from ai2i.chain.models import (
-    DEFAULT_BATCH_MAX_CONCURRENCY,
-    LLMModel,
-    LLMModelParams,
-    anthropic_model_params,
-    google_model_params,
-    openai_model_params,
-)
 
 default_logger = logging.getLogger(__name__)
 
@@ -74,11 +73,21 @@ class MaboolTimeout:
 
 
 class Timeouts:
-    tiny: ClassVar[MaboolTimeout] = MaboolTimeout(httpx.Timeout(10.0, read=5.0, write=3.0, connect=3.0))
-    short: ClassVar[MaboolTimeout] = MaboolTimeout(httpx.Timeout(15.0, read=10.0, write=5.0, connect=15.0))
-    medium: ClassVar[MaboolTimeout] = MaboolTimeout(httpx.Timeout(35.0, read=30.0, write=5.0, connect=15.0))
-    long: ClassVar[MaboolTimeout] = MaboolTimeout(httpx.Timeout(60.0, read=30.0, write=45.0, connect=15.0))
-    extra_long: ClassVar[MaboolTimeout] = MaboolTimeout(httpx.Timeout(120.0, read=60.0, write=90.0, connect=30.0))
+    tiny: ClassVar[MaboolTimeout] = MaboolTimeout(
+        httpx.Timeout(10.0, read=5.0, write=3.0, connect=3.0)
+    )
+    short: ClassVar[MaboolTimeout] = MaboolTimeout(
+        httpx.Timeout(15.0, read=10.0, write=5.0, connect=15.0)
+    )
+    medium: ClassVar[MaboolTimeout] = MaboolTimeout(
+        httpx.Timeout(35.0, read=30.0, write=5.0, connect=15.0)
+    )
+    long: ClassVar[MaboolTimeout] = MaboolTimeout(
+        httpx.Timeout(60.0, read=30.0, write=45.0, connect=15.0)
+    )
+    extra_long: ClassVar[MaboolTimeout] = MaboolTimeout(
+        httpx.Timeout(120.0, read=60.0, write=90.0, connect=30.0)
+    )
 
 
 class TenacityRetrySettings(TypedDict, total=False):
@@ -94,12 +103,16 @@ class TenacityRetrySettings(TypedDict, total=False):
     retry_error_callback: Callable[[RetryCallState], Awaitable[Any] | Any] | None
 
 
-def default_retry_settings(logger: logging.Logger | None = None) -> TenacityRetrySettings:
+def default_retry_settings(
+    logger: logging.Logger | None = None,
+) -> TenacityRetrySettings:
     return {
         # mabool defaults
         "wait": wait_random_exponential(multiplier=0.5, max=10),
         "stop": stop_after_attempt(5),
-        "after": after_log(logger if logger is not None else default_logger, logging.DEBUG),
+        "after": after_log(
+            logger if logger is not None else default_logger, logging.DEBUG
+        ),
     }
 
 
@@ -125,10 +138,14 @@ OUT = TypeVar("OUT", covariant=True)
 
 
 class LangChainModelFactory(Protocol):
-    def __call__(self, model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None) -> BaseChatModel: ...
+    def __call__(
+        self, model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None
+    ) -> BaseChatModel: ...
 
 
-def _openai_chat_factory(model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None) -> BaseChatModel:
+def _openai_chat_factory(
+    model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None
+) -> BaseChatModel:
     params = openai_model_params(model.params)
 
     return ChatOpenAI(
@@ -140,11 +157,18 @@ def _openai_chat_factory(model: LLMModel, timeout: MaboolTimeout, api_key: Secre
     )
 
 
-def _anthropic_chat_factory(model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None) -> BaseChatModel:
+def _anthropic_chat_factory(
+    model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None
+) -> BaseChatModel:
     secret_api_key = SecretStr("") if api_key is None else api_key
     params = anthropic_model_params(model.params)
 
-    return ChatAnthropic(api_key=secret_api_key, model_name=model.name, timeout=timeout.total_seconds(), **params)
+    return ChatAnthropic(
+        api_key=secret_api_key,
+        model_name=model.name,
+        timeout=timeout.total_seconds(),
+        **params,
+    )
 
 
 def _google_chat_factory_with_async(
@@ -160,12 +184,14 @@ def _google_chat_factory_with_async(
         model_name=model.name,
         client=Client(
             api_key=secret_api_key,
-            http_options=HttpOptions(timeout=int(1000 * timeout_seconds) if timeout_seconds is not None else None),
+            http_options=HttpOptions(
+                timeout=(
+                    int(1000 * timeout_seconds) if timeout_seconds is not None else None
+                )
+            ),
         ),
         model_kwargs={
-            "generation_config": {
-                "response_mime_type": "application/json",
-            },
+            "generation_config": {"response_mime_type": "application/json"},
             **params,
         },
     )
@@ -175,19 +201,22 @@ class JsonChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
     async def ainvoke(self, *args: Any, **kwargs: Any) -> Any:
         return await super().ainvoke(
             *args,
-            generation_config={
-                "response_mime_type": "application/json",
-            },
+            generation_config={"response_mime_type": "application/json"},
             **kwargs,
         )
 
 
-def _google_chat_factory(model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None) -> BaseChatModel:
+def _google_chat_factory(
+    model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None
+) -> BaseChatModel:
     secret_api_key = None if api_key is None else api_key
     params = google_model_params(model.params)
 
     return JsonChatGoogleGenerativeAI(
-        api_key=secret_api_key, model=model.name, timeout=timeout.total_seconds(), **params
+        api_key=secret_api_key,
+        model=model.name,
+        timeout=timeout.total_seconds(),
+        **params,
     )
 
 
@@ -206,7 +235,11 @@ class Execution(Generic[IN, OUT]):
     # The resulting list will contain elements of 'OUT | Exception', if it's False it will only contain 'OUT' elements
     @overload
     async def many(
-        self, inputs: list[IN], *, return_exceptions: TrueLiteral, **batch_ec: Unpack[BatchExecutionContextBase]
+        self,
+        inputs: list[IN],
+        *,
+        return_exceptions: TrueLiteral,
+        **batch_ec: Unpack[BatchExecutionContextBase],
     ) -> list[OUT | Exception]:
         pass
 
@@ -221,7 +254,10 @@ class Execution(Generic[IN, OUT]):
         pass
 
     async def many(
-        self, inputs: list[IN], return_exceptions: bool = False, **batch_ec: Unpack[BatchExecutionContextBase]
+        self,
+        inputs: list[IN],
+        return_exceptions: bool = False,
+        **batch_ec: Unpack[BatchExecutionContextBase],
     ) -> list[OUT | Exception] | list[OUT]:
         resolved_batch_ec: BatchExecutionContext = {
             **_default_batch_execution_context(),
@@ -239,20 +275,28 @@ class RetryWithTenacity(Runnable[IN, OUT]):
     _decorated: Runnable[IN, OUT]
     _retry_settings: TenacityRetrySettings
 
-    def __init__(self, decorated: Runnable[IN, OUT], retry_settings: TenacityRetrySettings) -> None:
+    def __init__(
+        self, decorated: Runnable[IN, OUT], retry_settings: TenacityRetrySettings
+    ) -> None:
         self._decorated = decorated
         self._retry_settings = retry_settings
         super().__init__()
 
-    async def ainvoke(self, input: IN, config: RunnableConfig | None = None, **kwargs: Any) -> OUT:
+    async def ainvoke(
+        self, input: IN, config: RunnableConfig | None = None, **kwargs: Any
+    ) -> OUT:
         @retry(**self._retry_settings)
         async def invoke_with_retry() -> OUT:
             return await self._decorated.ainvoke(input, config, **kwargs)
 
         return await invoke_with_retry()
 
-    def invoke(self, input: IN, config: RunnableConfig | None = None, **kwargs: Any) -> OUT:
-        raise NotImplementedError(f"No support for blocking calls in {self.__class__.__name__}")
+    def invoke(
+        self, input: IN, config: RunnableConfig | None = None, **kwargs: Any
+    ) -> OUT:
+        raise NotImplementedError(
+            f"No support for blocking calls in {self.__class__.__name__}"
+        )
 
     async def abatch(
         self,
@@ -289,7 +333,9 @@ class RetryWithTenacity(Runnable[IN, OUT]):
         return_exceptions: bool = False,
         **kwargs: Any | None,
     ) -> list[OUT]:
-        raise NotImplementedError(f"No support for blocking calls in {self.__class__.__name__}")
+        raise NotImplementedError(
+            f"No support for blocking calls in {self.__class__.__name__}"
+        )
 
 
 @dataclass(frozen=True)
@@ -301,10 +347,22 @@ class LLMEndpoint:
     api_key: SecretStr | None = None
 
     def timeout(self, timeout: MaboolTimeout) -> LLMEndpoint:
-        return LLMEndpoint(self.default_retry_settings, timeout, self.default_model, self.model_factory, self.api_key)
+        return LLMEndpoint(
+            self.default_retry_settings,
+            timeout,
+            self.default_model,
+            self.model_factory,
+            self.api_key,
+        )
 
     def model(self, model: LLMModel) -> LLMEndpoint:
-        return LLMEndpoint(self.default_retry_settings, self.default_timeout, model, self.model_factory, self.api_key)
+        return LLMEndpoint(
+            self.default_retry_settings,
+            self.default_timeout,
+            model,
+            self.model_factory,
+            self.api_key,
+        )
 
     def model_params(self, **params: Unpack[LLMModelParams]) -> LLMEndpoint:
         return LLMEndpoint(
@@ -326,12 +384,18 @@ class LLMEndpoint:
 
     def with_api_key(self, api_key: SecretStr) -> LLMEndpoint:
         return LLMEndpoint(
-            self.default_retry_settings, self.default_timeout, self.default_model, self.model_factory, api_key
+            self.default_retry_settings,
+            self.default_timeout,
+            self.default_model,
+            self.model_factory,
+            api_key,
         )
 
     def execute(self, computation: ChainComputation[IN, OUT]) -> Execution[IN, OUT]:
         def model_factory() -> ModelRunnable:
-            model = self.model_factory(self.default_model, self.default_timeout, self.api_key)
+            model = self.model_factory(
+                self.default_model, self.default_timeout, self.api_key
+            )
             # decorate with retries
             return RetryWithTenacity(model, self.default_retry_settings)
 

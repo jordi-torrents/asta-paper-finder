@@ -5,9 +5,6 @@ from typing import Any
 from ai2i.config import application_config_ctx, load_conf
 from ai2i.di import create_empty_app_context, create_managed_app
 from fastapi import FastAPI, Request
-from pydantic import BaseModel
-from starlette.middleware.sessions import SessionMiddleware
-
 from mabool.data_model.agent import AgentError
 from mabool.infra.operatives import (
     CompleteResponse,
@@ -20,6 +17,8 @@ from mabool.infra.operatives import (
     operative_session,
 )
 from mabool.utils.paths import project_root
+from pydantic import BaseModel
+from starlette.middleware.sessions import SessionMiddleware
 
 
 class AnimalQueryAgentState(BaseModel):
@@ -52,21 +51,29 @@ class TailAgent(Operative[TailQuery, bool, AnimalQueryAgentState]):
                 return state, CompleteResponse(data=True)
             else:
                 do_you_have_a_tail = await inquiry.ask(
-                    InquiryQuestion(question="Do you have a tail?", options=[True, False])
+                    InquiryQuestion(
+                        question="Do you have a tail?", options=[True, False]
+                    )
                 )
                 return state, CompleteResponse(data=bool(do_you_have_a_tail.answer))
 
 
 class LimbCounterTool(Operative[LimbsQuery, int, None]):
-    async def handle_operation(self, state: None, inputs: LimbsQuery) -> tuple[None, OperativeResponse[int]]:
+    async def handle_operation(
+        self, state: None, inputs: LimbsQuery
+    ) -> tuple[None, OperativeResponse[int]]:
         if inputs.animal == "fox":
             return state, CompleteResponse(data=4)
         elif inputs.animal == "bat":
             return state, CompleteResponse(data=2)
-        return state, VoidResponse(error=AgentError(type="other", message="Unknown animal."))
+        return state, VoidResponse(
+            error=AgentError(type="other", message="Unknown animal.")
+        )
 
 
-class InteractiveAnimalQueryAgent(Operative[AnimalQuery, list[str], AnimalQueryAgentState]):
+class InteractiveAnimalQueryAgent(
+    Operative[AnimalQuery, list[str], AnimalQueryAgentState]
+):
     def register(self) -> None:
         self.tail_agent = self.init_operative("tail_agent", TailAgent)
 
@@ -78,7 +85,9 @@ class InteractiveAnimalQueryAgent(Operative[AnimalQuery, list[str], AnimalQueryA
             return state, CompleteResponse(data=["wait", "wait", "wait"])
 
         if inputs.query == "blah":
-            return state, VoidResponse(error=AgentError(type="other", message="You have to ask about animals."))
+            return state, VoidResponse(
+                error=AgentError(type="other", message="You have to ask about animals.")
+            )
 
         if inputs.query == "who are you?" and state and state.user_identity:
             return state, CompleteResponse(data=[state.user_identity])
@@ -105,7 +114,9 @@ class InteractiveAnimalQueryAgent(Operative[AnimalQuery, list[str], AnimalQueryA
         limbs = await limb_counter(LimbsQuery(animal=who_are_you_response.answer))
         logging.debug(limbs)
 
-        tail_response = await self.tail_agent(TailQuery(animal=who_are_you_response.answer))
+        tail_response = await self.tail_agent(
+            TailQuery(animal=who_are_you_response.answer)
+        )
         logging.debug(tail_response)
 
         if inquiry:
@@ -114,12 +125,17 @@ class InteractiveAnimalQueryAgent(Operative[AnimalQuery, list[str], AnimalQueryA
                 return new_state, CompleteResponse(data=["sight", "smell", "sound"])
             elif who_are_you_response.answer == "bat":
                 return new_state, PartialResponse(
-                    data=["echolocation"], error=AgentError(type="other", message="some methods are missing")
+                    data=["echolocation"],
+                    error=AgentError(type="other", message="some methods are missing"),
                 )
             else:
-                return state, VoidResponse(error=AgentError(type="other", message="Wrong option."))
+                return state, VoidResponse(
+                    error=AgentError(type="other", message="Wrong option.")
+                )
         else:
-            return state, VoidResponse(error=AgentError(type="other", message="No interactions available."))
+            return state, VoidResponse(
+                error=AgentError(type="other", message="No interactions available.")
+            )
 
 
 def create_mock_app(**config_overrides: dict[str, Any]) -> FastAPI:

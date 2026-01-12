@@ -15,13 +15,7 @@ from ai2i.dcollection import (
     RelevanceCriteria,
     RelevanceCriterion,
 )
-from pydantic import BaseModel, model_validator
-
-from mabool.agents.common.common import (
-    InputQuery,
-    InputQueryJson,
-    as_input_query_json,
-)
+from mabool.agents.common.common import InputQuery, InputQueryJson, as_input_query_json
 from mabool.data_model.agent import (
     BroadOrSpecificType,
     ByNameOrTitleType,
@@ -36,6 +30,7 @@ from mabool.data_model.agent import (
     PossibleRefusal,
 )
 from mabool.data_model.specifications import Specifications
+from pydantic import BaseModel, model_validator
 
 # ---------------------- #
 # Suitable For Citations #
@@ -61,7 +56,9 @@ suitable_for_citing = define_prompt_llm_call(
     _suitable_for_by_citing_prompt_tmpl,
     input_type=SuitableForByCitingInput,
     output_type=SuitableForByCiting,
-    custom_format_instructions=('Output a json with key "answer" with a boolean answer.'),
+    custom_format_instructions=(
+        'Output a json with key "answer" with a boolean answer.'
+    ),
 ).map(lambda o: o.answer)
 
 
@@ -351,7 +348,10 @@ If the query asks for central papers, return the JSON object {"centrality": "fir
 {"centrality": null}"""  # noqa: E501
 
 _centrality_extraction = define_chat_llm_call(
-    [system_message(_centrality_extraction_prompt_tmpl), user_message("{{query_json}}")],
+    [
+        system_message(_centrality_extraction_prompt_tmpl),
+        user_message("{{query_json}}"),
+    ],
     format="mustache",
     input_type=InputQueryJson,
     output_type=ExtractedCentrality,
@@ -439,12 +439,17 @@ class UniqueOrDescType(BaseModel):
 
 def _to_broad_or_specific_type(udt: UniqueOrDescType) -> BroadOrSpecificType:
     return (
-        BroadOrSpecificType(type="specific") if udt.type == "unique-identifier" else BroadOrSpecificType(type="broad")
+        BroadOrSpecificType(type="specific")
+        if udt.type == "unique-identifier"
+        else BroadOrSpecificType(type="broad")
     )
 
 
 _broad_or_specific_query_type = define_chat_llm_call(
-    [system_message(_broad_or_specific_query_type_prompt_tmpl), user_message("{{query_json}}")],
+    [
+        system_message(_broad_or_specific_query_type_prompt_tmpl),
+        user_message("{{query_json}}"),
+    ],
     format="mustache",
     input_type=InputQueryJson,
     output_type=UniqueOrDescType,
@@ -476,7 +481,10 @@ If the query is looking for a paper by name, return the JSON object {"type": "ti
 {"type": "name"}"""  # noqa: E501
 
 _by_title_or_name_query_type = define_chat_llm_call(
-    [system_message(_by_title_or_name_query_type_prompt_tmpl), user_message("{{query_json}}")],
+    [
+        system_message(_by_title_or_name_query_type_prompt_tmpl),
+        user_message("{{query_json}}"),
+    ],
     format="mustache",
     input_type=InputQueryJson,
     output_type=ByNameOrTitleType,
@@ -514,7 +522,10 @@ class IdentifyRelevanceCriteriaOutput(BaseModel):
 
     @model_validator(mode="after")
     def check_at_least_one_not_none(self) -> IdentifyRelevanceCriteriaOutput:
-        if self.required_relevance_critieria is None and self.clarification_questions is None:
+        if (
+            self.required_relevance_critieria is None
+            and self.clarification_questions is None
+        ):
             raise ValueError(
                 "At least one of 'required_relevance_critieria' or 'clarification_questions' must be provided."
             )
@@ -524,9 +535,13 @@ class IdentifyRelevanceCriteriaOutput(BaseModel):
     def check_all_criterion_names_are_distinct(self) -> IdentifyRelevanceCriteriaOutput:
         criterion_names = set()
         if self.required_relevance_critieria is not None:
-            criterion_names |= {criterion.name for criterion in self.required_relevance_critieria}
+            criterion_names |= {
+                criterion.name for criterion in self.required_relevance_critieria
+            }
         if self.nice_to_have_relevance_criteria is not None:
-            criterion_names |= {criterion.name for criterion in self.nice_to_have_relevance_criteria}
+            criterion_names |= {
+                criterion.name for criterion in self.nice_to_have_relevance_criteria
+            }
 
         if len(criterion_names) != len(self.required_relevance_critieria or []) + len(
             self.nice_to_have_relevance_criteria or []
@@ -537,8 +552,13 @@ class IdentifyRelevanceCriteriaOutput(BaseModel):
     @model_validator(mode="after")
     def check_weights_sum_to_one(self) -> IdentifyRelevanceCriteriaOutput:
         if self.required_relevance_critieria is not None:
-            if sum(criterion.weight for criterion in self.required_relevance_critieria) != 1:
-                raise ValueError("The sum of weights for required relevance criteria must be 1.")
+            if (
+                sum(criterion.weight for criterion in self.required_relevance_critieria)
+                != 1
+            ):
+                raise ValueError(
+                    "The sum of weights for required relevance criteria must be 1."
+                )
         return self
 
 
@@ -556,7 +576,10 @@ def _map_relevance_criteria_output(
 
 _identify_relevance_criteria = (
     define_chat_llm_call(
-        [system_message(_identify_relevance_criteria_prompt_tmpl), user_message("{{query}}")],
+        [
+            system_message(_identify_relevance_criteria_prompt_tmpl),
+            user_message("{{query}}"),
+        ],
         format="mustache",
         input_type=InputQueryJson,
         output_type=IdentifyRelevanceCriteriaOutput,
@@ -575,10 +598,7 @@ extract_specifications_path = _my_dir / "extract_specifications.md"
 with open(extract_specifications_path, "r") as fp:
     _extract_specification_prompt = fp.read()
 specification_extraction = define_chat_llm_call(
-    [
-        system_message(_extract_specification_prompt),
-        user_message("{{query}}"),
-    ],
+    [system_message(_extract_specification_prompt), user_message("{{query}}")],
     format="mustache",
     input_type=InputQueryJson,
     output_type=Specifications,

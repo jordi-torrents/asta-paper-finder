@@ -15,7 +15,9 @@ class StorageEntry:
 
 class RoundsStorage(ABC):
     @abstractmethod
-    async def push(self, round_id: RoundId, env: ManagedEnv, cleanup: CleanUpFunc | None) -> None: ...
+    async def push(
+        self, round_id: RoundId, env: ManagedEnv, cleanup: CleanUpFunc | None
+    ) -> None: ...
 
     @abstractmethod
     async def pop(self, round_id: RoundId) -> tuple[ManagedEnv, CleanUpFunc | None]: ...

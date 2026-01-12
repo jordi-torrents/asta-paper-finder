@@ -65,18 +65,25 @@ class PrioritySemaphore:
             if not prioritized_task.task_ticket.done():
                 prioritized_task.task_ticket.set_result(None)
                 self._available_concurrency -= 1
-                logger.info(f"Task with priority {prioritized_task.priority} is being executed")
+                logger.info(
+                    f"Task with priority {prioritized_task.priority} is being executed"
+                )
 
     async def __aenter__(self) -> PrioritySemaphore:
         await self.acquire()
         return self
 
     async def __aexit__(
-        self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
     ) -> None:
         await self.release()
 
-    def priority_context(self, priority: int = DEFAULT_PRIORITY) -> AsyncContextManager[PrioritySemaphore]:
+    def priority_context(
+        self, priority: int = DEFAULT_PRIORITY
+    ) -> AsyncContextManager[PrioritySemaphore]:
         @dataclass
         class PrioritySemaphoreContext:
             semaphore: PrioritySemaphore
@@ -98,7 +105,9 @@ class PrioritySemaphore:
 
 
 def with_priority(
-    func: Callable[P, Awaitable[T]], semaphore: PrioritySemaphore, priority: int = DEFAULT_PRIORITY
+    func: Callable[P, Awaitable[T]],
+    semaphore: PrioritySemaphore,
+    priority: int = DEFAULT_PRIORITY,
 ) -> Callable[P, Awaitable[T]]:
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         async with semaphore.priority_context(priority):

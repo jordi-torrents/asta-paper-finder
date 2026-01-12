@@ -1,7 +1,6 @@
 import random
 
 import pytest
-
 from ai2i.chain.models import DEFAULT_N, LLMModel
 
 

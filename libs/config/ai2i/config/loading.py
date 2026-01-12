@@ -6,10 +6,9 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from ai2i.config.config_models import AppConfig, ConfigDict, ConfigSettings, UserFacing
 from deepmerge import always_merger
 from dotenv import dotenv_values
-
-from ai2i.config.config_models import AppConfig, ConfigDict, ConfigSettings, UserFacing
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,9 @@ def load_user_facing_files(dir: Path) -> dict[str, Any]:
     for file in dir.glob("*.toml"):
         with file.open(mode="rb") as f:
             user_facing_strings = tomllib.load(f)
-            merged_user_facing_strings = always_merger.merge(merged_user_facing_strings, user_facing_strings)
+            merged_user_facing_strings = always_merger.merge(
+                merged_user_facing_strings, user_facing_strings
+            )
 
     return merged_user_facing_strings
 
@@ -63,7 +64,9 @@ def update_environment_with_secrets(settings_dict: dict[str, Any]) -> None:
 
 
 def load_conf(conf_dir: Path) -> AppConfig:
-    return AppConfig(config=load_config_settings(conf_dir), user_facing=load_user_facing(conf_dir))
+    return AppConfig(
+        config=load_config_settings(conf_dir), user_facing=load_user_facing(conf_dir)
+    )
 
 
 def load_user_facing(conf_dir: Path) -> UserFacing:
@@ -76,7 +79,9 @@ def load_user_facing(conf_dir: Path) -> UserFacing:
 def load_config_settings(conf_dir: Path) -> ConfigSettings:
     basic_settings = load_config_files(conf_dir)
     secrets_settings = load_secrets_file(conf_dir)
-    settings_from_files: dict[str, Any] = always_merger.merge(basic_settings, secrets_settings)
+    settings_from_files: dict[str, Any] = always_merger.merge(
+        basic_settings, secrets_settings
+    )
 
     # Pick the settings namespace based on specified config env
     settings_env = os.getenv("APP_CONFIG_ENV", None)
@@ -85,12 +90,15 @@ def load_config_settings(conf_dir: Path) -> ConfigSettings:
         settings_from_files = settings_from_files.get("default", {})
     else:
         settings_from_files = always_merger.merge(
-            settings_from_files.get("default", {}), settings_from_files.get(settings_env, {})
+            settings_from_files.get("default", {}),
+            settings_from_files.get(settings_env, {}),
         )
 
     # Add environment variables to the config
     environ: dict[str, Any] = {k: v for k, v in os.environ.items()}
-    final_settings_dict = always_merger.merge(_deep_lowercase_keys(settings_from_files), _deep_lowercase_keys(environ))
+    final_settings_dict = always_merger.merge(
+        _deep_lowercase_keys(settings_from_files), _deep_lowercase_keys(environ)
+    )
 
     update_environment_with_secrets(final_settings_dict)
 

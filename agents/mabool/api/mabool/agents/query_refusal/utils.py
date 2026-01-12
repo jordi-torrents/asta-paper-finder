@@ -11,8 +11,6 @@ from ai2i.chain import (
     user_message,
 )
 from ai2i.config import config_value, ufv
-from pydantic import BaseModel
-
 from mabool.agents.common.common import InputQuery, as_input_query
 from mabool.agents.common.explain import explain_query_analysis
 from mabool.data_model.agent import AnalyzedQuery, PartiallyAnalyzedQuery
@@ -21,6 +19,7 @@ from mabool.data_model.ufs import uf
 from mabool.infra.operatives import Inquiry, InquiryQuestion
 from mabool.utils.llm_utils import get_api_key_for_model
 from mabool.utils.text import HRULE, join_paragraphs
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -90,15 +89,19 @@ async def clarify_query_refusal(
                         *explain_query_analysis(analyzed_input),
                         HRULE,
                         ufv(uf.response_texts.refusal.should_run),
-                    ),
+                    )
                 )
             )
         else:
-            reply = await inquiry.ask(InquiryQuestion(question=ufv(uf.response_texts.refusal.yes_or_no)))
+            reply = await inquiry.ask(
+                InquiryQuestion(question=ufv(uf.response_texts.refusal.yes_or_no))
+            )
         return reply.answer
 
     async def convert_choice_to_valid_number(user_choice: str) -> bool | None:
-        llm_model = LLMModel.from_name(config_value(cfg_schema.query_analyzer_agent.llm_abstraction_model_name))
+        llm_model = LLMModel.from_name(
+            config_value(cfg_schema.query_analyzer_agent.llm_abstraction_model_name)
+        )
         return (
             await define_llm_endpoint(
                 default_timeout=Timeouts.short,

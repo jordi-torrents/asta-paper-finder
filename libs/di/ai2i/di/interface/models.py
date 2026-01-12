@@ -18,9 +18,8 @@ from typing import (
     Sequence,
 )
 
-from fastapi import Request
-
 from ai2i.common.utils.value import ValueNotSet
+from fastapi import Request
 
 type Scope = Literal["singleton", "request", "round", "turn"]
 
@@ -76,7 +75,9 @@ class ScopedDependencyDefinition[A](DependencyDefinition[A]):
     scope: Scope
 
     @staticmethod
-    def predefined[R](t: type[R], name: str, scope: Scope) -> ScopedDependencyDefinition[R]:
+    def predefined[R](
+        t: type[R], name: str, scope: Scope
+    ) -> ScopedDependencyDefinition[R]:
         return ScopedDependencyDefinition(
             unique_name=name,
             create_context_manager=lambda _: nullcontext(),  # type:  ignore
@@ -85,14 +86,18 @@ class ScopedDependencyDefinition[A](DependencyDefinition[A]):
         )
 
 
-type NamedDependenciesDict = dict[str, DependencyDefinition[Any]] | ChainMap[str, DependencyDefinition[Any]]
+type NamedDependenciesDict = dict[str, DependencyDefinition[Any]] | ChainMap[
+    str, DependencyDefinition[Any]
+]
 
 
 type DefaultFactory[A] = Callable[[], A]
 
 
 class ProvidesDecorator(Protocol):
-    def __call__[A](self, f: AsyncFunc[..., A] | AsyncContextFunc[..., A]) -> DependencyDefinition[A]: ...
+    def __call__[A](
+        self, f: AsyncFunc[..., A] | AsyncContextFunc[..., A]
+    ) -> DependencyDefinition[A]: ...
 
 
 @dataclass(frozen=True)

@@ -16,7 +16,9 @@ class MockModelRunnable(Runnable[PromptValue, BaseMessage]):
     def __post_init__(self) -> None:
         super().__init__()
 
-    async def ainvoke(self, input: PromptValue, config: RunnableConfig | None = None, **kwargs: Any) -> BaseMessage:
+    async def ainvoke(
+        self, input: PromptValue, config: RunnableConfig | None = None, **kwargs: Any
+    ) -> BaseMessage:
         self.last_input = input
 
         if self.throw_error_n_times > 0:
@@ -24,9 +26,17 @@ class MockModelRunnable(Runnable[PromptValue, BaseMessage]):
             raise ValueError(f"Mock Error, {self.throw_error_n_times} throws left")
 
         if self.return_value is not None:
-            return BaseMessage(content=self.return_value, type="ChatGeneration", response_metadata=self.return_metadata)
+            return BaseMessage(
+                content=self.return_value,
+                type="ChatGeneration",
+                response_metadata=self.return_metadata,
+            )
         else:
             raise ValueError("No return_value defined for this mock")
 
-    def invoke(self, input: PromptValue, config: RunnableConfig | None = None, **kwargs: Any) -> BaseMessage:
-        raise NotImplementedError(f"No support for blocking calls in {self.__class__.__name__}")
+    def invoke(
+        self, input: PromptValue, config: RunnableConfig | None = None, **kwargs: Any
+    ) -> BaseMessage:
+        raise NotImplementedError(
+            f"No support for blocking calls in {self.__class__.__name__}"
+        )

@@ -1,12 +1,8 @@
 import logging
 
 from ai2i.config import config_value, ufv
-from ai2i.dcollection import (
-    DocumentCollection,
-    ExtractedYearlyTimeRange,
-)
+from ai2i.dcollection import DocumentCollection, ExtractedYearlyTimeRange
 from ai2i.di import DI
-
 from mabool.agents.common.domain_utils import get_fields_of_study_filter_from_domains
 from mabool.agents.common.utils import alog_args
 from mabool.data_model.agent import (
@@ -48,7 +44,9 @@ class MetadataOnlySearchAgent(Operative[MetadataOnlySearchInput, AgentOutput, No
         assert venues or (time_range and not time_range.is_empty())
 
         # NOTE we get "computer science" by default ...
-        fields_of_study = get_fields_of_study_filter_from_domains(domains) if domains else None
+        fields_of_study = (
+            get_fields_of_study_filter_from_domains(domains) if domains else None
+        )
 
         search_results = await DC.from_s2_search(
             "",
@@ -61,18 +59,24 @@ class MetadataOnlySearchAgent(Operative[MetadataOnlySearchInput, AgentOutput, No
 
     @alog_args(log_function=logging.info)
     async def handle_operation(
-        self,
-        state: None,
-        inputs: MetadataOnlySearchInput,
+        self, state: None, inputs: MetadataOnlySearchInput
     ) -> tuple[None, OperativeResponse[AgentOutput]]:
         response_text = ""
         try:
-            results = await self.get_papers_by_metadata(inputs.time_range, inputs.venues, inputs.domains)
+            results = await self.get_papers_by_metadata(
+                inputs.time_range, inputs.venues, inputs.domains
+            )
             if not results or len(results.documents) == 0:
-                response_text = ufv(uf.response_texts.metadata_agent.could_not_find_in_s2)
+                response_text = ufv(
+                    uf.response_texts.metadata_agent.could_not_find_in_s2
+                )
                 if inputs.venues and len(inputs.venues) > 0:
-                    response_text += ufv(uf.response_texts.metadata_agent.try_alternative)
-            elif len(results.documents) == config_value(cfg_schema.s2_api.total_papers_limit):
+                    response_text += ufv(
+                        uf.response_texts.metadata_agent.try_alternative
+                    )
+            elif len(results.documents) == config_value(
+                cfg_schema.s2_api.total_papers_limit
+            ):
                 response_text = ufv(
                     uf.response_texts.metadata_agent.notice_limit,
                     limit=config_value(cfg_schema.s2_api.total_papers_limit),
@@ -82,5 +86,7 @@ class MetadataOnlySearchAgent(Operative[MetadataOnlySearchInput, AgentOutput, No
 
         return (
             None,
-            CompleteResponse(data=AgentOutput(response_text=response_text, doc_collection=results)),
+            CompleteResponse(
+                data=AgentOutput(response_text=response_text, doc_collection=results)
+            ),
         )

@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 
 import pytest
-
 from mabool.data_model import specifications as specs
 
 from .query_analyzer import extract_specifications
@@ -28,31 +27,44 @@ testdata: list[Test] = [
     Test(
         "cited by any other paper",
         "Papers by Mayer Godberg cited by any other paper",
-        specs.PaperSpec(authors=specs.AuthorSpec(name="Mayer Godberg"), min_citations=1),
+        specs.PaperSpec(
+            authors=specs.AuthorSpec(name="Mayer Godberg"), min_citations=1
+        ),
     ),
     Test(
         "publication type JournalArticle",
         "Journal papers by Mayer Godberg",
-        specs.PaperSpec(authors=specs.AuthorSpec(name="Mayer Godberg"), publication_type="JournalArticle"),
+        specs.PaperSpec(
+            authors=specs.AuthorSpec(name="Mayer Godberg"),
+            publication_type="JournalArticle",
+        ),
     ),
     Test(
         "Multiple authors - and",
         "Papers by Mayer Godberg and Yossi Matias",
         specs.PaperSpec(
             authors=specs.Set(
-                items=[specs.AuthorSpec(name="Mayer Godberg"), specs.AuthorSpec(name="Yossi Matias")], op="and"
+                items=[
+                    specs.AuthorSpec(name="Mayer Godberg"),
+                    specs.AuthorSpec(name="Yossi Matias"),
+                ],
+                op="and",
             )
         ),
     ),
     Test(
         "Field of study - given",
         "Papers by David Harel about biology",
-        specs.PaperSpec(authors=specs.AuthorSpec(name="David Harel"), field_of_study="biology"),
+        specs.PaperSpec(
+            authors=specs.AuthorSpec(name="David Harel"), field_of_study="biology"
+        ),
     ),
     Test(
         "Field of study - not in list",
         "Papers by David Harel about quantum computing",
-        specs.PaperSpec(authors=specs.AuthorSpec(name="David Harel"), content="quantum computing"),
+        specs.PaperSpec(
+            authors=specs.AuthorSpec(name="David Harel"), content="quantum computing"
+        ),
     ),
     Test(
         "Min. authors of a paper",
@@ -101,7 +113,11 @@ testdata: list[Test] = [
     Test(
         "Venue group",
         "IEEE papers about biology from 2010 to 2015",
-        specs.PaperSpec(venue_group="IEEE", content="biology", years=specs.Years(start=2010, end=2015)),
+        specs.PaperSpec(
+            venue_group="IEEE",
+            content="biology",
+            years=specs.Years(start=2010, end=2015),
+        ),
     ),
     Test(
         "Negation - not by author",
@@ -114,7 +130,10 @@ testdata: list[Test] = [
     Test(
         "Negation - not in venue",
         "Papers by Andrej Karpathy but not in NeurIPS",
-        specs.PaperSpec(authors=specs.AuthorSpec(name="Andrej Karpathy"), exclude=specs.PaperSpec(venue="NeurIPS")),
+        specs.PaperSpec(
+            authors=specs.AuthorSpec(name="Andrej Karpathy"),
+            exclude=specs.PaperSpec(venue="NeurIPS"),
+        ),
     ),
     Test(
         "Negation - do not cite",
@@ -152,9 +171,7 @@ async def test_extract_specs_self_citation() -> None:
             union=[
                 specs.PaperSpec(
                     authors=specs.AuthorSpec(name="Andrej Karpathy"),
-                    citing=specs.PaperSpec(
-                        authors=specs.AuthorSpec(name="Furu Wei"),
-                    ),
+                    citing=specs.PaperSpec(authors=specs.AuthorSpec(name="Furu Wei")),
                     exclude=specs.PaperSpec(authors=specs.AuthorSpec(name="Furu Wei")),
                 )
             ]
@@ -211,7 +228,9 @@ class TestContent:
                     specs.PaperSpec(
                         content=str(content),
                         years=specs.Years(end=1979),
-                        exclude=specs.PaperSpec(authors=specs.AuthorSpec(name="Dijkstra")),
+                        exclude=specs.PaperSpec(
+                            authors=specs.AuthorSpec(name="Dijkstra")
+                        ),
                     )
                 ]
             ):

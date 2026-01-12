@@ -1,9 +1,4 @@
-from ai2i.config import (
-    ConfigValue,
-    config_value,
-    configurable,
-    with_config_overrides,
-)
+from ai2i.config import ConfigValue, config_value, configurable, with_config_overrides
 from ai2i.config.tests.config import cfg_schema
 
 
@@ -34,7 +29,9 @@ def test_defaults() -> None:
 
 def test_config_decorator_simple_func() -> None:
     @configurable
-    def get_value(k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query)) -> int:
+    def get_value(
+        k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query),
+    ) -> int:
         return k
 
     assert get_value() == 2
@@ -43,7 +40,9 @@ def test_config_decorator_simple_func() -> None:
 
 def test_config_decorator_simple_kwarg_only_func() -> None:
     @configurable
-    def get_value(*, k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query)) -> int:
+    def get_value(
+        *, k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query)
+    ) -> int:
         return k
 
     assert get_value() == 2
@@ -52,7 +51,9 @@ def test_config_decorator_simple_kwarg_only_func() -> None:
 
 def test_config_decorator_many_args() -> None:
     @configurable
-    def get_value(n: str, k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query)) -> tuple[str, int]:
+    def get_value(
+        n: str, k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query)
+    ) -> tuple[str, int]:
         return n, k
 
     assert get_value("AB") == ("AB", 2)
@@ -62,7 +63,8 @@ def test_config_decorator_many_args() -> None:
 def test_config_decorator_many_args_other_defaults() -> None:
     @configurable
     def get_value(
-        n: str = "GOOD", k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query)
+        n: str = "GOOD",
+        k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query),
     ) -> tuple[str, int]:
         return n, k
 
@@ -74,7 +76,10 @@ def test_config_decorator_many_args_other_defaults() -> None:
 def test_config_decorator_many_args_complex_defaults() -> None:
     @configurable
     def get_value(
-        s: str, n: str = "GOOD", /, k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query)
+        s: str,
+        n: str = "GOOD",
+        /,
+        k: int = ConfigValue(cfg_schema.dense_agent.initial_top_k_per_query),
     ) -> tuple[str, str, int]:
         return s, n, k
 

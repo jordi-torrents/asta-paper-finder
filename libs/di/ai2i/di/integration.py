@@ -3,19 +3,21 @@ from functools import partial
 from pathlib import Path
 from typing import Any, AsyncGenerator, Awaitable, Callable, cast
 
-from fastapi import Depends, FastAPI, Request
-from fastapi.responses import Response
-from starlette.types import ASGIApp, Receive, Scope, Send
-
 from ai2i.config import ConfigSettings, application_config_ctx, load_user_facing
 from ai2i.config.config_models import AppConfig
 from ai2i.di.app_context import ApplicationContext
 from ai2i.di.interface.models import RequestAndBody
 from ai2i.di.managed_env import ManagedEnv
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import Response
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 
 def create_managed_app(
-    app_context: ApplicationContext, app_config: ConfigSettings, di_patched_instances: dict[str, Any], conf_path: Path
+    app_context: ApplicationContext,
+    app_config: ConfigSettings,
+    di_patched_instances: dict[str, Any],
+    conf_path: Path,
 ) -> FastAPI:
     setup_fastapi_di = partial(
         _setup_singleton_scope,
@@ -27,7 +29,9 @@ def create_managed_app(
     if app_config.show_api_swagger:
         app = FastAPI(lifespan=setup_fastapi_di)
     else:
-        app = FastAPI(lifespan=setup_fastapi_di, docs_url=None, redoc_url=None, openapi_url=None)
+        app = FastAPI(
+            lifespan=setup_fastapi_di, docs_url=None, redoc_url=None, openapi_url=None
+        )
 
     # activate DI request scope for http requests
     @app.middleware("http")
@@ -35,10 +39,14 @@ def create_managed_app(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         app_config = get_application_config(request.app.state)
-        with application_config_ctx(AppConfig(config=app_config, user_facing=load_user_facing(conf_path))):
+        with application_config_ctx(
+            AppConfig(config=app_config, user_facing=load_user_facing(conf_path))
+        ):
             singleton_env = get_singleton_env(request.app.state)
             if singleton_env is not None:
-                app_context.create_fresh_scopes_context(patched_instances=di_patched_instances)
+                app_context.create_fresh_scopes_context(
+                    patched_instances=di_patched_instances
+                )
                 app_context.scopes.singleton.replace_env(singleton_env)
 
             try:
@@ -69,7 +77,11 @@ class WebSocketSingletonScopeMiddleware:
     _conf_path: Path
 
     def __init__(
-        self, app: ASGIApp, app_context: ApplicationContext, di_patched_instances: dict[str, Any], conf_path: Path
+        self,
+        app: ASGIApp,
+        app_context: ApplicationContext,
+        di_patched_instances: dict[str, Any],
+        conf_path: Path,
     ) -> None:
         self._app = app
         self._app_context = app_context
@@ -82,9 +94,13 @@ class WebSocketSingletonScopeMiddleware:
             if singleton_env is not None:
                 app_config = get_application_config(scope["app"].state)
                 with application_config_ctx(
-                    AppConfig(config=app_config, user_facing=load_user_facing(self._conf_path))
+                    AppConfig(
+                        config=app_config, user_facing=load_user_facing(self._conf_path)
+                    )
                 ):
-                    self._app_context.create_fresh_scopes_context(patched_instances=self._di_patched_instances)
+                    self._app_context.create_fresh_scopes_context(
+                        patched_instances=self._di_patched_instances
+                    )
                     self._app_context.scopes.singleton.replace_env(singleton_env)
                     await self._app(scope, receive, send)
             else:
@@ -102,8 +118,12 @@ async def _setup_singleton_scope(
     conf_path: Path,
 ) -> AsyncGenerator[dict, None]:
     # NOTE: config scope must come first as factories of the singleton scope will need the config available
-    with application_config_ctx(AppConfig(config=app_config, user_facing=load_user_facing(conf_path))):
-        async with app_context.scopes.singleton.managed_scope({**di_patched_instances}) as singleton_env:
+    with application_config_ctx(
+        AppConfig(config=app_config, user_facing=load_user_facing(conf_path))
+    ):
+        async with app_context.scopes.singleton.managed_scope(
+            {**di_patched_instances}
+        ) as singleton_env:
             app_state = _get_app_state(app)
             app_state.application_config = app_config
             app_state.singleton_env = singleton_env
@@ -119,9 +139,13 @@ def _get_app_state(app: FastAPI) -> AppState:
     return cast(AppState, app.state)
 
 
-def get_application_config(app_state: AppState = Depends(_get_app_state)) -> ConfigSettings:
+def get_application_config(
+    app_state: AppState = Depends(_get_app_state),
+) -> ConfigSettings:
     return app_state.application_config
 
 
-def get_singleton_env(app_state: AppState = Depends(_get_app_state)) -> ManagedEnv | None:
+def get_singleton_env(
+    app_state: AppState = Depends(_get_app_state),
+) -> ManagedEnv | None:
     return app_state.singleton_env

@@ -3,11 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Literal, Mapping, Sequence, cast
 
-from inflection import camelize
-from semanticscholar.AsyncSemanticScholar import AsyncSemanticScholar
-from semanticscholar.Paper import Paper
-from semanticscholar.SemanticScholarException import BadQueryParametersException, NoMorePagesException
-
 from ai2i.common.utils.asyncio import custom_gather
 from ai2i.common.utils.batch import with_batch
 from ai2i.dcollection.data_access_context import DocumentCollectionContext
@@ -22,6 +17,13 @@ from ai2i.dcollection.interface.document import (
     OriginQuery,
     PublicationVenue,
     Snippet,
+)
+from inflection import camelize
+from semanticscholar.AsyncSemanticScholar import AsyncSemanticScholar
+from semanticscholar.Paper import Paper
+from semanticscholar.SemanticScholarException import (
+    BadQueryParametersException,
+    NoMorePagesException,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,10 +54,16 @@ async def from_s2(
         force_deterministic=context.force_deterministic,
     )
     @s2_retry()
-    async def _batched_from_s2(entities: Sequence[Document], fields: Sequence[DocumentFieldName]) -> Sequence[Document]:
+    async def _batched_from_s2(
+        entities: Sequence[Document], fields: Sequence[DocumentFieldName]
+    ) -> Sequence[Document]:
         docs_by_corpus_id = keyed_by_corpus_id(entities)
         try:
-            papers = await _fetch_paper_data([int(entity.corpus_id) for entity in entities], fields, context.s2_client)
+            papers = await _fetch_paper_data(
+                [int(entity.corpus_id) for entity in entities],
+                fields,
+                context.s2_client,
+            )
         except BadQueryParametersException as e:
             if "No valid paper ids given" in str(e):
                 logger.warning(
@@ -68,7 +76,12 @@ async def from_s2(
             raise e
         docs, found_corpus_ids = await _to_docs(docs_by_corpus_id, fields, papers)
         await _fill_missing_corpus_ids(
-            docs, docs_by_corpus_id, found_corpus_ids, fields, context.s2_client, context.force_deterministic
+            docs,
+            docs_by_corpus_id,
+            found_corpus_ids,
+            fields,
+            context.s2_client,
+            context.force_deterministic,
         )
         return docs
 
@@ -100,18 +113,26 @@ async def get_paginated_results(
     try:
         if references_or_citations == "references":
             results = await s2_client.get_paper_references(
-                f"CorpusId:{corpus_id}", references_or_citations_fields, limit=MAX_TOTAL_CONNECTION_RESULTS
+                f"CorpusId:{corpus_id}",
+                references_or_citations_fields,
+                limit=MAX_TOTAL_CONNECTION_RESULTS,
             )
         else:
             results = await s2_client.get_paper_citations(
-                f"CorpusId:{corpus_id}", references_or_citations_fields, limit=MAX_TOTAL_CONNECTION_RESULTS
+                f"CorpusId:{corpus_id}",
+                references_or_citations_fields,
+                limit=MAX_TOTAL_CONNECTION_RESULTS,
             )
-        logger.info(f"Got {len(results)} results on first citations page for {corpus_id}.")
+        logger.info(
+            f"Got {len(results)} results on first citations page for {corpus_id}."
+        )
     except TypeError:
         # the TypeError here is due to a null-reference bug in semantic-scholar package.
         # they haven't handled the new case of "SOME field has been elided by the publisher"
         # P.S. this happens much more often for "references" than "citations" for some reason
-        logger.info(f"'{references_or_citations}' field has been elided by the publisher for paper {corpus_id}.")
+        logger.info(
+            f"'{references_or_citations}' field has been elided by the publisher for paper {corpus_id}."
+        )
         return Paper({"corpusId": corpus_id, "citations": []})
 
     if overall_limit > MAX_TOTAL_CONNECTION_RESULTS:
@@ -119,8 +140,12 @@ async def get_paginated_results(
             while len(results) < overall_limit:
                 results.next_page()
         except NoMorePagesException:
-            logger.info(f"No more pages for {corpus_id} after fetching {len(results)} results.")
-    return Paper({"corpusId": corpus_id, "citations": [item.raw_data for item in results.items]})
+            logger.info(
+                f"No more pages for {corpus_id} after fetching {len(results)} results."
+            )
+    return Paper(
+        {"corpusId": corpus_id, "citations": [item.raw_data for item in results.items]}
+    )
 
 
 async def _fetch_paper_data(
@@ -132,7 +157,9 @@ async def _fetch_paper_data(
     try:
         papers = cast(
             Sequence[Paper],
-            await s2_client.get_papers([f"CorpusId:{cid}" for cid in corpus_ids], fields=[*s2_fields]),
+            await s2_client.get_papers(
+                [f"CorpusId:{cid}" for cid in corpus_ids], fields=[*s2_fields]
+            ),
         )
     except Exception as e:
         logger.error(f"Failed to fetch paper data for corpus_ids={corpus_ids}: {e}")
@@ -154,25 +181,32 @@ async def _fetch_paper_data(
     papers_with_few_citations = dict()
     if corpus_ids_with_few_citations:
         try:
-            citation_fields = ["corpusId"] + [f"citations.{f}" for f in references_or_citations_fields]
+            citation_fields = ["corpusId"] + [
+                f"citations.{f}" for f in references_or_citations_fields
+            ]
             papers_with_few_citations = {
                 paper.corpusId: paper
                 for paper in cast(
                     Sequence[Paper],
                     await s2_client.get_papers(
-                        [f"CorpusId:{cid}" for cid in corpus_ids_with_few_citations], fields=[*citation_fields]
+                        [f"CorpusId:{cid}" for cid in corpus_ids_with_few_citations],
+                        fields=[*citation_fields],
                     ),
                 )
             }
         except Exception as e:
-            logger.error(f"Failed to fetch paper citation data (bulk) for corpus_ids={corpus_ids}: {e}")
+            logger.error(
+                f"Failed to fetch paper citation data (bulk) for corpus_ids={corpus_ids}: {e}"
+            )
             raise e
 
     # then bring all papers with more than 1K citations sequentially using get_paper_citations (as its not batched)
     papers_with_many_citations = dict()
     for cid in corpus_ids_with_many_citations:
         try:
-            papers_with_many_citations[cid] = await get_paginated_results(cid, "citations", s2_client)
+            papers_with_many_citations[cid] = await get_paginated_results(
+                cid, "citations", s2_client
+            )
         except Exception as e:
             logger.warning(
                 f"Failed to fetch paper citation data (sequential) for corpus_id={cid}, continue with best effort: {e}"
@@ -188,7 +222,14 @@ async def _fetch_paper_data(
             if not paper_with_citation:
                 continue
             final_papers.append(
-                Paper({**paper.raw_data, "citations": [p.raw_data for p in paper_with_citation.citations]})
+                Paper(
+                    {
+                        **paper.raw_data,
+                        "citations": [
+                            p.raw_data for p in paper_with_citation.citations
+                        ],
+                    }
+                )
             )
         except Exception:
             logger.warning(f"failed to add citations to paper {cid}. skipping.")
@@ -227,13 +268,23 @@ def s2_paper_to_document(
         doc = PaperFinderDocument(
             corpus_id=str(corpus_id),
             origins=[origin_query] if origin_query else [],
-            url=paper.url if hasattr(paper, "_url") else f"https://api.semanticscholar.org/CorpusId:{corpus_id}",
+            url=(
+                paper.url
+                if hasattr(paper, "_url")
+                else f"https://api.semanticscholar.org/CorpusId:{corpus_id}"
+            ),
             title=paper.title,
             year=paper.year,
-            authors=[Author(name=a.name, author_id=a.authorId) for a in paper.authors or []],
+            authors=[
+                Author(name=a.name, author_id=a.authorId) for a in paper.authors or []
+            ],
             abstract=paper.abstract,
             venue=paper.venue,
-            publication_venue=PublicationVenue.from_dict(paper.publicationVenue) if paper.publicationVenue else None,
+            publication_venue=(
+                PublicationVenue.from_dict(paper.publicationVenue)
+                if paper.publicationVenue
+                else None
+            ),
             publication_types=paper.publicationTypes,
             tldr=paper.tldr.text if paper.tldr else None,
             citations=[
@@ -243,7 +294,9 @@ def s2_paper_to_document(
                     reference_count=c.referenceCount,
                     influential_citation_count=c.influentialCitationCount,
                     year=c.year,
-                    publication_date=c.publicationDate.date() if c.publicationDate else None,
+                    publication_date=(
+                        c.publicationDate.date() if c.publicationDate else None
+                    ),
                 )
                 for c in paper.citations or []
                 if c.corpusId is not None
@@ -255,7 +308,9 @@ def s2_paper_to_document(
                     reference_count=r.referenceCount,
                     influential_citation_count=r.influentialCitationCount,
                     year=r.year,
-                    publication_date=r.publicationDate.date() if r.publicationDate else None,
+                    publication_date=(
+                        r.publicationDate.date() if r.publicationDate else None
+                    ),
                 )
                 for r in paper.references or []
                 if r.corpusId is not None
@@ -265,10 +320,14 @@ def s2_paper_to_document(
             influential_citation_count=paper.influentialCitationCount,
             snippets=[Snippet(text=c) for c in contexts] if contexts else [],
             journal=Journal.from_dict(paper.journal) if paper.journal else None,
-            publication_date=paper.publicationDate.date() if paper.publicationDate else None,
+            publication_date=(
+                paper.publicationDate.date() if paper.publicationDate else None
+            ),
         )
     else:
-        doc = PaperFinderDocument(corpus_id=str(corpus_id), origins=[origin_query] if origin_query else [])
+        doc = PaperFinderDocument(
+            corpus_id=str(corpus_id), origins=[origin_query] if origin_query else []
+        )
     return doc
 
 
@@ -284,17 +343,25 @@ async def _fill_missing_corpus_ids(
     force_deterministic: bool = False,
 ) -> None:
     missing_corpus_ids: list[CorpusId] = [
-        corpus_id for corpus_id in docs_by_corpus_id.keys() if corpus_id not in found_corpus_ids
+        corpus_id
+        for corpus_id in docs_by_corpus_id.keys()
+        if corpus_id not in found_corpus_ids
     ]
     missing_paper_results_futures = []
     for missing_corpus_id in missing_corpus_ids:
         missing_paper_results_futures.append(
-            _s2_get_paper_data_for_missing_id(missing_corpus_id=missing_corpus_id, fields=fields, s2_client=s2_client)
+            _s2_get_paper_data_for_missing_id(
+                missing_corpus_id=missing_corpus_id, fields=fields, s2_client=s2_client
+            )
         )
-    missing_paper_results = await custom_gather(*missing_paper_results_futures, force_deterministic=force_deterministic)
+    missing_paper_results = await custom_gather(
+        *missing_paper_results_futures, force_deterministic=force_deterministic
+    )
     for missing_corpus_id, missing_paper_result in missing_paper_results:
         if missing_paper_result:
-            missing_doc = s2_paper_to_document(missing_corpus_id, paper=missing_paper_result)
+            missing_doc = s2_paper_to_document(
+                missing_corpus_id, paper=missing_paper_result
+            )
             docs.append(missing_doc)
 
 
@@ -304,7 +371,9 @@ async def _s2_get_paper_data_for_missing_id(
     s2_client: AsyncSemanticScholar,
 ) -> tuple[CorpusId, Paper | None]:
     try:
-        missing_papers = await _fetch_paper_data([int(missing_corpus_id)], fields, s2_client)
+        missing_papers = await _fetch_paper_data(
+            [int(missing_corpus_id)], fields, s2_client
+        )
         return missing_corpus_id, missing_papers[0] if missing_papers else None
     except Exception as e:
         logger.error(f"Failed to fetch missing paper {missing_corpus_id} from S2: {e}")

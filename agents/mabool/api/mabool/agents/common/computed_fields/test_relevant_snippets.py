@@ -1,7 +1,9 @@
 import pytest
 from ai2i.dcollection import CitationContext, Snippet
-
-from mabool.agents.common.computed_fields.relevant_snippets import _choose_min_combined_span, _fuzzy_find_snippet_text
+from mabool.agents.common.computed_fields.relevant_snippets import (
+    _choose_min_combined_span,
+    _fuzzy_find_snippet_text,
+)
 
 
 @pytest.mark.parametrize(
@@ -46,7 +48,9 @@ from mabool.agents.common.computed_fields.relevant_snippets import _choose_min_c
         ("This is a tëst", "tëst", [(10, 14)]),
     ],
 )
-def test_fuzzy_find_snippet_text(text: str, snippet_to_find: str, expected: list[tuple[int, int]]) -> None:
+def test_fuzzy_find_snippet_text(
+    text: str, snippet_to_find: str, expected: list[tuple[int, int]]
+) -> None:
     assert _fuzzy_find_snippet_text(text, snippet_to_find) == expected
 
 
@@ -269,7 +273,8 @@ def test_fuzzy_find_snippet_text(text: str, snippet_to_find: str, expected: list
     ],
 )
 def test_choose_min_combined_span(
-    part_matches_aggregate: list[list[Snippet | CitationContext]], expected: list[Snippet | CitationContext | None]
+    part_matches_aggregate: list[list[Snippet | CitationContext]],
+    expected: list[Snippet | CitationContext | None],
 ) -> None:
     result = _choose_min_combined_span(part_matches_aggregate)
     assert len(result) == len(expected)

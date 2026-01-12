@@ -4,6 +4,12 @@ import logging
 from typing import Any, TypedDict
 
 import httpx
+from ai2i.dcollection.interface.document import (
+    Author,
+    BoundingBox,
+    CorpusId,
+    ExtractedYearlyTimeRange,
+)
 from httpx import NetworkError, Response, TimeoutException
 from langchain_core.callbacks import (
     AsyncCallbackManagerForRetrieverRun,
@@ -13,13 +19,6 @@ from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from pydantic import Field
 from semanticscholar import AsyncSemanticScholar
-
-from ai2i.dcollection.interface.document import (
-    Author,
-    BoundingBox,
-    CorpusId,
-    ExtractedYearlyTimeRange,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +89,11 @@ def get_paper_metadata(metadata: dict) -> dict:
         url = f"https://www.semanticscholar.org/paper/{metadata['pdfHash']}"
     return {
         "corpus_id": metadata["corpusId"],
-        "authors": ([Author(name=a) for a in metadata["authors"]] if metadata.get("authors") else []),
+        "authors": (
+            [Author(name=a) for a in metadata["authors"]]
+            if metadata.get("authors")
+            else []
+        ),
         "title": metadata["title"] if metadata.get("title") else "",
         "url": url,
         # TODO - add when available
@@ -109,7 +112,9 @@ def get_bounding_boxes(snippet: Any) -> list[BoundingBox]:
             try:
                 ret.append(BoundingBox(**bb))
             except TypeError:
-                logger.warning(f"couldn't extract bounding boxes information (continue with best effort): {bb}")
+                logger.warning(
+                    f"couldn't extract bounding boxes information (continue with best effort): {bb}"
+                )
     return ret
 
 
@@ -131,7 +136,11 @@ def get_sentence_offsets(
     snippet_annotations: SnippetAnnotations, snippet_offset: dict[str, int]
 ) -> list[dict[str, dict[str, int]]]:
     ret = []
-    for sent in snippet_annotations.get("sentences") if snippet_annotations.get("sentences") else []:
+    for sent in (
+        snippet_annotations.get("sentences")
+        if snippet_annotations.get("sentences")
+        else []
+    ):
         sent_offsets = {
             "global_offset": {
                 "start": snippet_offset["start"] + sent["start"],
@@ -150,7 +159,9 @@ class VespaRetriever(BaseRetriever):
 
     def get_actual_vespa_version(self) -> str:
         if not self.actual_vespa_version:
-            raise Exception("get_actual_vespa_version should be called only after retrieving docs")
+            raise Exception(
+                "get_actual_vespa_version should be called only after retrieving docs"
+            )
         return self.actual_vespa_version
 
     def _init_docs(self, matches: dict) -> list[Document]:
@@ -162,9 +173,15 @@ class VespaRetriever(BaseRetriever):
             paper_metadata = get_paper_metadata(match["paper"])
             sentence_metadata = {
                 "section_kind": s["snippetKind"],
-                "section_title": (s["snippetKind"] if s["snippetKind"] in ["title", "abstract"] else s["section"]),
+                "section_title": (
+                    s["snippetKind"]
+                    if s["snippetKind"] in ["title", "abstract"]
+                    else s["section"]
+                ),
                 "ref_mentions": get_ref_mentions(s.get("annotations", dict())),
-                "sentence_offsets": get_sentence_offsets(s.get("annotations", dict()), s["snippetOffset"]),
+                "sentence_offsets": get_sentence_offsets(
+                    s.get("annotations", dict()), s["snippetOffset"]
+                ),
                 "bounding_boxes": None,  # TODO - add when available
             }
             offset_metadata = {
@@ -208,19 +225,30 @@ class VespaRetriever(BaseRetriever):
             raise ExceedQuotaError()
         if 400 <= response.status_code < 500:
             text = response.text
-            raise Exception(f"Request failed with status code {response.status_code}: {text}")
+            raise Exception(
+                f"Request failed with status code {response.status_code}: {text}"
+            )
         if response.status_code == 504:
             raise TimeoutException("S2 API request timed out")
         if 500 <= response.status_code:
             text = response.text
-            raise NetworkError(f"Request failed with status code {response.status_code}: {text}")
+            raise NetworkError(
+                f"Request failed with status code {response.status_code}: {text}"
+            )
         json_response = response.json()
         if not isinstance(json_response, dict):
-            raise ValueError(f"Expected a dictionary response, got {type(json_response)}")
-        if "message" in json_response and json_response["message"] == "Endpoint request timed out":
+            raise ValueError(
+                f"Expected a dictionary response, got {type(json_response)}"
+            )
+        if (
+            "message" in json_response
+            and json_response["message"] == "Endpoint request timed out"
+        ):
             raise TimeoutException("S2 API request timed out")
         if "data" not in json_response:
-            raise ValueError(f'Unexpected response from S2 snippet search API (missing "data" key): {response}')
+            raise ValueError(
+                f'Unexpected response from S2 snippet search API (missing "data" key): {response}'
+            )
 
         return json_response
 
@@ -266,7 +294,9 @@ class UniqueDocument(Document):
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, UniqueDocument):
             return False
-        return self.page_content == other.page_content and self.metadata == other.metadata
+        return (
+            self.page_content == other.page_content and self.metadata == other.metadata
+        )
 
     def __hash__(self) -> int:
         return hash(self.page_content) + hash(self.metadata.get("relevance_grade"))

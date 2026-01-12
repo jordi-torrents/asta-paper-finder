@@ -3,11 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Generic, Iterator, Sequence, TypeVar
 
+from ai2i.common.utils.value import ValueNotSet
 from deepmerge.merger import Merger
 
-from ai2i.common.utils.value import ValueNotSet
-
-dicts_only_merger = Merger([(dict, ["merge"]), (list, ["override"]), (set, ["override"])], ["override"], ["override"])
+dicts_only_merger = Merger(
+    [(dict, ["merge"]), (list, ["override"]), (set, ["override"])],
+    ["override"],
+    ["override"],
+)
 
 
 class Config:

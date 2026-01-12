@@ -21,7 +21,9 @@ ScopeOrCustom = Literal["custom"] | Scope
 
 class ScopeContext(ABC):
     @abstractmethod
-    def replace_env(self, env: ManagedEnv, cleanup: CleanUpFunc | None = None) -> None: ...
+    def replace_env(
+        self, env: ManagedEnv, cleanup: CleanUpFunc | None = None
+    ) -> None: ...
 
     @property
     @abstractmethod
@@ -42,7 +44,9 @@ class ScopeContext(ABC):
 
 class SimpleScope(ScopeContext, ABC):
     @abstractmethod
-    def managed_scope(self, values: CachedValues | None = None) -> AsyncContextManager[ManagedEnv]: ...
+    def managed_scope(
+        self, values: CachedValues | None = None
+    ) -> AsyncContextManager[ManagedEnv]: ...
 
     @abstractmethod
     async def open_scope(self, values: CachedValues | None = None) -> ManagedEnv: ...
@@ -73,7 +77,9 @@ class HibernatingScope[A](ScopeContext, ABC):
     async def close_scope(self) -> tuple[ManagedEnv | None, CleanUpFunc | None]: ...
 
     @abstractmethod
-    async def reopen_scope(self, env: ManagedEnv, cleanup: CleanUpFunc | None) -> None: ...
+    async def reopen_scope(
+        self, env: ManagedEnv, cleanup: CleanUpFunc | None
+    ) -> None: ...
 
 
 # class ApplicationScopes(ABC):
@@ -144,10 +150,14 @@ class ProvidersPerScope(ABC):
     def round(self) -> Providers: ...
 
     @abstractmethod
-    def provides(self, *, scope: Scope, name: str | None = None) -> ProvidesDecorator: ...
+    def provides(
+        self, *, scope: Scope, name: str | None = None
+    ) -> ProvidesDecorator: ...
 
     @abstractmethod
     def chain_with(self, other: ProvidersPerScope) -> ProvidersPerScope: ...
 
     @abstractmethod
-    def create_scopes(self, *, patched_instances: dict[str, Any]) -> ApplicationScopes: ...
+    def create_scopes(
+        self, *, patched_instances: dict[str, Any]
+    ) -> ApplicationScopes: ...

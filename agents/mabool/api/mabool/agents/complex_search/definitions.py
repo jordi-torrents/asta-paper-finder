@@ -1,9 +1,12 @@
-from ai2i.dcollection import DocumentCollection, ExtractedYearlyTimeRange, PaperFinderDocumentCollection
-from pydantic import BaseModel, Field, field_validator
-
+from ai2i.dcollection import (
+    DocumentCollection,
+    ExtractedYearlyTimeRange,
+    PaperFinderDocumentCollection,
+)
 from mabool.agents.llm_suggestion.llm_suggestion_agent import LLMSuggestionArgs
 from mabool.data_model.agent import AgentInput, DomainsIdentified, RelevanceCriteria
 from mabool.utils.dc import DC
+from pydantic import BaseModel, Field, field_validator
 
 
 class BroadSearchArgs(LLMSuggestionArgs, BaseModel):
@@ -44,6 +47,8 @@ class BroadSearchOutput(BaseModel):
 
     @field_validator("doc_collection", mode="after")
     @classmethod
-    def copy_doc_collection(cls, doc_collection: PaperFinderDocumentCollection) -> DocumentCollection:
+    def copy_doc_collection(
+        cls, doc_collection: PaperFinderDocumentCollection
+    ) -> DocumentCollection:
         copied_documents = [d.model_copy(deep=True) for d in doc_collection.documents]
         return doc_collection.factory.from_docs(copied_documents)

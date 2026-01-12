@@ -1,7 +1,6 @@
 from ai2i.chain import define_prompt_llm_call
-from pydantic import BaseModel
-
 from mabool.agents.common.common import InputQuery, as_input_query
+from pydantic import BaseModel
 
 # ------------- #
 # Extract Title #

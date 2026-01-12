@@ -8,10 +8,7 @@ from ai2i.di.factory.modules import create_module
 from ai2i.di.interface import builtin_deps
 from ai2i.di.interface.app_context import ApplicationContext, RoundsManager
 from ai2i.di.interface.errors import OutOfScopeDependencyError
-from ai2i.di.interface.models import (
-    DependencyDefinition,
-    RoundId,
-)
+from ai2i.di.interface.models import DependencyDefinition, RoundId
 from ai2i.di.interface.modules import Module
 from ai2i.di.interface.scopes import ApplicationScopes, NestingScope
 from ai2i.di.rounds_storage import RoundsStorageImpl
@@ -49,7 +46,10 @@ class ApplicationContextImpl(ApplicationContext):
 
     def create_fresh_scopes_context(self, *, patched_instances: dict[str, Any]) -> None:
         app_scopes = self._module.providers.create_scopes(
-            patched_instances={builtin_deps.application_context.unique_name: self, **patched_instances}
+            patched_instances={
+                builtin_deps.application_context.unique_name: self,
+                **patched_instances,
+            }
         )
         ctx_active_scopes.set(app_scopes)
 
@@ -57,7 +57,9 @@ class ApplicationContextImpl(ApplicationContext):
     def scopes(self) -> ApplicationScopes:
         active_scopes = ctx_active_scopes.get()
         if active_scopes is None:
-            raise OutOfScopeDependencyError("No application context found to get scopes from")
+            raise OutOfScopeDependencyError(
+                "No application context found to get scopes from"
+            )
         return active_scopes
 
     @scopes.setter
@@ -69,7 +71,9 @@ class ApplicationContextImpl(ApplicationContext):
         # of the current scope finishing without there being a yield to the inner scope
         # causing the release of the outer scope pre-maturely)
 
-        active_nested_scopes = [e for e in self.scopes.envs if isinstance(e, NestingScope) and e.is_active]
+        active_nested_scopes = [
+            e for e in self.scopes.envs if isinstance(e, NestingScope) and e.is_active
+        ]
         for scope in active_nested_scopes:
             await scope.continue_scope()
 
@@ -101,7 +105,9 @@ class ApplicationContextImpl(ApplicationContext):
     async def reopen_round_scope(self, round_id: RoundId) -> None:
         singleton_env = self.scopes.singleton.env
         if singleton_env is None:
-            raise OutOfScopeDependencyError("Trying to re-open a round outside a singleton scope")
+            raise OutOfScopeDependencyError(
+                "Trying to re-open a round outside a singleton scope"
+            )
 
         round_manger = singleton_env.get_dependency(self._rounds_manager_def)
         env, cleanup = await round_manger.rounds_storage.pop(round_id)
@@ -113,7 +119,9 @@ class ApplicationContextImpl(ApplicationContext):
     async def close_round_scope(self) -> None:
         singleton_env = self.scopes.singleton.env
         if singleton_env is None:
-            raise OutOfScopeDependencyError("Trying to close round outside a singleton scope")
+            raise OutOfScopeDependencyError(
+                "Trying to close round outside a singleton scope"
+            )
 
         rounds_manager = singleton_env.get_dependency(self._rounds_manager_def)
         env, cleanup = await self.scopes.round.close_scope()
@@ -130,7 +138,9 @@ class ApplicationContextImpl(ApplicationContext):
     async def destroy_round_scope(self, round_id: RoundId) -> None:
         singleton_env = self.scopes.singleton.env
         if singleton_env is None:
-            raise OutOfScopeDependencyError("Trying to destroy round outside a singleton scope")
+            raise OutOfScopeDependencyError(
+                "Trying to destroy round outside a singleton scope"
+            )
 
         rounds_manager = singleton_env.get_dependency(self._rounds_manager_def)
         if self.scopes.round.is_active:

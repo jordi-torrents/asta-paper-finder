@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Optional, Self, TypeVar, final
 
 from ai2i.dcollection.interface.document import ExtractedYearlyTimeRange
-
 from mabool.data_model import specifications as specs
 
 from . import ops
@@ -17,16 +16,14 @@ def resolve_author(author_spec: specs.AuthorSpec) -> ops.DocOp:
         case specs.AuthorSpec(affiliation=affiliation) if affiliation:
             raise NotImplementedError("Author affiliation is not supported yet")
         case specs.AuthorSpec(
-            papers=specs.PaperSet(
-                op=op,
-                items=[paper_spec],
-            ),
-            min_authors=min_authors,
+            papers=specs.PaperSet(op=op, items=[paper_spec]), min_authors=min_authors
         ):
             prev = resolve_paper(paper_spec)
             authors_of_papers = ops.AuthorsOfPapers(papers=prev)
             return ops.ByAuthorsOfPapers(
-                authors=authors_of_papers, all_authors=(op == "all_authors_of"), min_authors_of_papers=min_authors
+                authors=authors_of_papers,
+                all_authors=(op == "all_authors_of"),
+                min_authors_of_papers=min_authors,
             )
         case specs.AuthorSpec(papers=paper_specs) if paper_specs:
             raise NotImplementedError("Author papers are not supported yet")
@@ -49,7 +46,9 @@ class Rule(ABC):
         if cls is not Rule:
             Rule.rules.append(cls())
 
-    def resolve(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def resolve(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         """
         Resolve a part of the paper specification into a plan.
         :param paper_spec: The paper specification to resolve.
@@ -95,7 +94,9 @@ class Primary(Rule, ABC):
 
 class Filter(Rule, ABC):
     @abstractmethod
-    def filter(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def filter(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         """
         Filter a plan from the paper specification.
         :param paper_spec: The paper specification to resolve.
@@ -125,7 +126,9 @@ class GenByNameVenueYears(Source):
 
     def apply(self, paper_spec: specs.PaperSpec) -> Optional[ops.DocOp]:
         match paper_spec:
-            case specs.PaperSpec(name=name, full_name=full_name, venue=venue, years=years) if full_name or name:
+            case specs.PaperSpec(
+                name=name, full_name=full_name, venue=venue, years=years
+            ) if (full_name or name):
                 title = full_name or name
                 assert title
                 match venue:
@@ -141,9 +144,18 @@ class GenByNameVenueYears(Source):
                         raise ValueError("Invalid venue specification")
                 match years:
                     case ExtractedYearlyTimeRange() | None:
-                        return ops.FromS2ByTitle(name=title, time_range=years, venues=venues)
+                        return ops.FromS2ByTitle(
+                            name=title, time_range=years, venues=venues
+                        )
                     case specs.Set(op="or", items=items):
-                        deps = list(map(lambda x: ops.FromS2ByTitle(name=title, time_range=x, venues=venues), items))
+                        deps = list(
+                            map(
+                                lambda x: ops.FromS2ByTitle(
+                                    name=title, time_range=x, venues=venues
+                                ),
+                                items,
+                            )
+                        )
                         return ops.Union(items=deps)
                     case specs.Set(op="and"):
                         raise ValueError("AND operation is not supported for years")
@@ -174,7 +186,12 @@ class GenByVenueYears(Source):
                     case ExtractedYearlyTimeRange() | None:
                         return ops.FromS2Search(venues=venues, time_range=years)
                     case specs.Set(op="or", items=items):
-                        deps = list(map(lambda x: ops.FromS2Search(venues=venues, time_range=x), items))
+                        deps = list(
+                            map(
+                                lambda x: ops.FromS2Search(venues=venues, time_range=x),
+                                items,
+                            )
+                        )
                         return ops.Union(items=deps)
                     case specs.Set(op="and"):
                         raise ValueError("AND operation is not supported for years")
@@ -228,7 +245,11 @@ class PrimeByCitedByMultiplePaperSpecs(Primary):
         match paper_spec:
             case specs.PaperSpec(cited_by=specs.Set(op=op, items=items)):
                 find_all_papers_citing = list(map(resolve_paper, items))
-                get_all_refs = list(map(lambda x: ops.GetAllReferences(source=x), find_all_papers_citing))
+                get_all_refs = list(
+                    map(
+                        lambda x: ops.GetAllReferences(source=x), find_all_papers_citing
+                    )
+                )
                 match op:
                     case "and":
                         action = ops.Intersect
@@ -244,9 +265,13 @@ class FilterByCitingSinglePaperSpec(Filter):
     def consumes(self) -> list[str]:
         return ["citing"]
 
-    def filter(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def filter(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         match paper_spec:
-            case specs.PaperSpec(citing=specs.PaperSpec() as papers_cited_by_target) if prev:
+            case specs.PaperSpec(
+                citing=specs.PaperSpec() as papers_cited_by_target
+            ) if prev:
                 find_papers_cited = resolve_paper(papers_cited_by_target)
                 get_refs = ops.EnrichWithReferences(source=prev)
                 return ops.FilterCiting(source=get_refs, to_cite=find_papers_cited)
@@ -259,13 +284,18 @@ class FilterByCitingMultiplePaperSpecs(Filter):
     def consumes(self) -> list[str]:
         return ["citing"]
 
-    def filter(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def filter(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         match paper_spec:
             case specs.PaperSpec(citing=specs.Set(op=op, items=items)) if prev:
                 find_all_papers_cited_by = list(map(resolve_paper, items))
                 enrich_refs = ops.EnrichWithReferences(source=prev)
                 filter_by_citing = list(
-                    map(lambda x: ops.FilterCiting(source=enrich_refs, to_cite=x), find_all_papers_cited_by)
+                    map(
+                        lambda x: ops.FilterCiting(source=enrich_refs, to_cite=x),
+                        find_all_papers_cited_by,
+                    )
                 )
                 op_cls = ops.Intersect if op == "and" else ops.Union
                 return op_cls(items=filter_by_citing)
@@ -278,9 +308,13 @@ class FilterByCitedBySinglePaperSpec(Filter):
     def consumes(self) -> list[str]:
         return ["cited_by"]
 
-    def filter(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def filter(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         match paper_spec:
-            case specs.PaperSpec(cited_by=specs.PaperSpec() as papers_citing_target) if prev:
+            case specs.PaperSpec(
+                cited_by=specs.PaperSpec() as papers_citing_target
+            ) if prev:
                 find_papers_citing = resolve_paper(papers_citing_target)
                 get_refs = ops.EnrichWithReferences(source=find_papers_citing)
                 return ops.FilterCitedBy(source=prev, that_cite=get_refs)
@@ -293,13 +327,17 @@ class FilterByCitedByMultiplePaperSpecs(Filter):
     def consumes(self) -> list[str]:
         return ["cited_by"]
 
-    def filter(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def filter(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         match paper_spec:
             case specs.PaperSpec(cited_by=specs.Set(op=op, items=items)) if prev:
                 find_all_papers_citing = list(map(resolve_paper, items))
                 filter_by_cited_by = list(
                     map(
-                        lambda x: ops.FilterCitedBy(source=prev, that_cite=ops.EnrichWithReferences(source=x)),
+                        lambda x: ops.FilterCitedBy(
+                            source=prev, that_cite=ops.EnrichWithReferences(source=x)
+                        ),
                         find_all_papers_citing,
                     )
                 )
@@ -332,7 +370,9 @@ class PrimeByCitingMultiplePapers(Primary):
         match paper_spec:
             case specs.PaperSpec(citing=specs.Set(items=items, op=op)):
                 find_all_papers_cited_by = list(map(resolve_paper, items))
-                get_all_citations = list(map(lambda x: ops.GetAllCiting(source=x), find_all_papers_cited_by))
+                get_all_citations = list(
+                    map(lambda x: ops.GetAllCiting(source=x), find_all_papers_cited_by)
+                )
                 op_cls = ops.Intersect if op == "and" else ops.Union
                 return op_cls(items=get_all_citations)
             case _:
@@ -347,8 +387,11 @@ class PrimeByS2Search(Primary):
     def generate(self, paper_spec: specs.PaperSpec) -> Optional[ops.DocOp]:
         match paper_spec:
             case specs.PaperSpec(
-                years=years, venue=venue, field_of_study=field_of_study, min_citations=min_citations
-            ) if venue or field_of_study:
+                years=years,
+                venue=venue,
+                field_of_study=field_of_study,
+                min_citations=min_citations,
+            ) if (venue or field_of_study):
                 match venue:
                     case str():
                         venues = [venue]
@@ -367,16 +410,27 @@ class PrimeByS2Search(Primary):
                 match min_citations:
                     case int() as min_citations:
                         if min_citations < 0:
-                            raise ValueError("Minimum citations must be a non-negative integer")
+                            raise ValueError(
+                                "Minimum citations must be a non-negative integer"
+                            )
                         f = lambda y: ops.FromS2Search(
-                            venues=venues, time_range=y, fields_of_study=fields_of_study, min_citations=min_citations
+                            venues=venues,
+                            time_range=y,
+                            fields_of_study=fields_of_study,
+                            min_citations=min_citations,
                         )
                     case "high":
                         f = lambda y: ops.FilterByHighlyCited(
-                            source=ops.FromS2Search(venues=venues, time_range=y, fields_of_study=fields_of_study)
+                            source=ops.FromS2Search(
+                                venues=venues,
+                                time_range=y,
+                                fields_of_study=fields_of_study,
+                            )
                         )
                     case None:
-                        f = lambda y: ops.FromS2Search(venues=venues, time_range=y, fields_of_study=fields_of_study)
+                        f = lambda y: ops.FromS2Search(
+                            venues=venues, time_range=y, fields_of_study=fields_of_study
+                        )
                 assert f
                 match years:
                     case ExtractedYearlyTimeRange():
@@ -399,10 +453,16 @@ class FilterByMinTotalAuthors(Filter):
     def consumes(self) -> list[str]:
         return ["min_total_authors"]
 
-    def filter(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def filter(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         match paper_spec:
-            case specs.PaperSpec(min_total_authors=min_total_authors) if min_total_authors and prev:
-                return ops.FilterByMinTotalAuthors(source=prev, min_total_authors=min_total_authors)
+            case specs.PaperSpec(min_total_authors=min_total_authors) if (
+                min_total_authors and prev
+            ):
+                return ops.FilterByMinTotalAuthors(
+                    source=prev, min_total_authors=min_total_authors
+                )
             case _:
                 return None
 
@@ -410,7 +470,14 @@ class FilterByMinTotalAuthors(Filter):
 @final
 class FilterByMetadata(Filter):
     def consumes(self) -> list[str]:
-        return ["years", "venue", "venue_group", "field_of_study", "publication_type", "min_citations"]
+        return [
+            "years",
+            "venue",
+            "venue_group",
+            "field_of_study",
+            "publication_type",
+            "min_citations",
+        ]
 
     T = TypeVar("T")
 
@@ -428,7 +495,9 @@ class FilterByMetadata(Filter):
             case _:
                 raise ValueError("Invalid metadata specification")
 
-    def filter(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def filter(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         match paper_spec:
             case specs.PaperSpec(
                 years=years,
@@ -437,7 +506,19 @@ class FilterByMetadata(Filter):
                 field_of_study=field_of_study,
                 publication_type=publication_type,
                 min_citations=min_citations,
-            ) if any((years, venue, venue_group, field_of_study, publication_type, min_citations)) and prev:
+            ) if (
+                any(
+                    (
+                        years,
+                        venue,
+                        venue_group,
+                        field_of_study,
+                        publication_type,
+                        min_citations,
+                    )
+                )
+                and prev
+            ):
                 years = self._norm(years)
                 venue = self._norm(venue)
                 venue_group = self._norm(venue_group)
@@ -476,7 +557,9 @@ class FilterExclude(Filter):
     def consumes(self) -> list[str]:
         return ["exclude"]
 
-    def filter(self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]) -> Optional[ops.DocOp]:
+    def filter(
+        self, paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp]
+    ) -> Optional[ops.DocOp]:
         match paper_spec:
             case specs.PaperSpec(exclude=exclude) if exclude and prev:
                 match exclude:
@@ -491,7 +574,9 @@ class FilterExclude(Filter):
                         citing=specs.PaperSpec() | None as citing,
                         cited_by=specs.PaperSpec() | None as cited_by,
                     ):
-                        source = ops.EnrichWithReferences(source=prev) if citing else prev
+                        source = (
+                            ops.EnrichWithReferences(source=prev) if citing else prev
+                        )
                         years = FilterByMetadata._norm(years)
                         venue = FilterByMetadata._norm(venue)
                         venue_group = FilterByMetadata._norm(venue_group)
@@ -522,7 +607,9 @@ class FilterExclude(Filter):
                 return None
 
 
-def resolve_paper(paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp] = None) -> ops.DocOp:
+def resolve_paper(
+    paper_spec: specs.PaperSpec, prev: Optional[ops.DocOp] = None
+) -> ops.DocOp:
     if paper_spec.is_empty():
         if prev:
             return prev

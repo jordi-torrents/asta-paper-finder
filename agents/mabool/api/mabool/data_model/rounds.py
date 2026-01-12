@@ -4,21 +4,25 @@ import dataclasses
 from dataclasses import field
 
 from ai2i.dcollection import CorpusId
-from pydantic import BaseModel, Field
-
 from mabool.data_model.agent import AgentOperationMode
+from pydantic import BaseModel, Field
 
 
 class RoundRequest(BaseModel):
-    paper_description: str = Field(description="A description of the set of papers you're looking for.")
+    paper_description: str = Field(
+        description="A description of the set of papers you're looking for."
+    )
     operation_mode: AgentOperationMode | None = Field(
-        default="infer", description='The operation mode of the tool: "infer" | "fast" | "diligent"'
+        default="infer",
+        description='The operation mode of the tool: "infer" | "fast" | "diligent"',
     )
     inserted_before: str | None = Field(
         default=None,
         description="Excludes docs inserted on the provided date onward. Acceptable formats: YYYY-MM-DD, YYYY-MM, YYYY",
     )
-    read_results_from_cache: bool | None = Field(default=False, description="Whether or not to use cached results.")
+    read_results_from_cache: bool | None = Field(
+        default=False, description="Whether or not to use cached results."
+    )
 
 
 @dataclasses.dataclass

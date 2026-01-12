@@ -12,7 +12,11 @@ from ai2i.di.interface.models import (
     ProvidesDecorator,
 )
 from ai2i.di.providers import Providers
-from ai2i.di.resolver import GetDependencyOperations, ManagedOperations, ResolverFromCache
+from ai2i.di.resolver import (
+    GetDependencyOperations,
+    ManagedOperations,
+    ResolverFromCache,
+)
 from ai2i.di.utils import dependency_topological_sort
 
 
@@ -47,7 +51,9 @@ class ManagedEnv(GetDependencyOperations, ManagedOperations):
         self._providers = providers
         self._already_constructed_keys = list(existing_cache.keys())
 
-    def clone_with(self, providers: Providers, pre_populated_cache: CachedValues | None = None) -> ManagedEnv:
+    def clone_with(
+        self, providers: Providers, pre_populated_cache: CachedValues | None = None
+    ) -> ManagedEnv:
         if pre_populated_cache is None:
             pre_populated_cache = {}
 
@@ -68,10 +74,14 @@ class ManagedEnv(GetDependencyOperations, ManagedOperations):
     async def _build_all(self) -> CleanUpFunc:
         cleanups: list[CleanUpFunc] = []
         # validate all dependencies depend on providers defined in this env
-        available_def_names = set(d.unique_name for d in self._providers) | set(self._already_constructed_keys)
+        available_def_names = set(d.unique_name for d in self._providers) | set(
+            self._already_constructed_keys
+        )
         for d in self._providers:
             if any(dd not in available_def_names for dd in d.depends_on):
-                unavailable_dep = next(filter(lambda dd: dd not in available_def_names, d.depends_on))
+                unavailable_dep = next(
+                    filter(lambda dd: dd not in available_def_names, d.depends_on)
+                )
                 raise ProviderBuildError(
                     "Attempting to build a provider with a non existant depenedncy, maybe a scope mismatch?"
                     + f" Missing dep: {unavailable_dep}",
@@ -79,7 +89,9 @@ class ManagedEnv(GetDependencyOperations, ManagedOperations):
                 )
 
         # create dependencies in topological sort, so that we build things in correct order
-        ordered_definitions = dependency_topological_sort(self._providers, self._already_constructed_keys)
+        ordered_definitions = dependency_topological_sort(
+            self._providers, self._already_constructed_keys
+        )
 
         async def clean_all() -> None:
             # clean instances in the reversed order of their creation
@@ -89,7 +101,9 @@ class ManagedEnv(GetDependencyOperations, ManagedOperations):
         try:
             for definition in ordered_definitions:
                 if definition.unique_name not in self._already_constructed_keys:
-                    value, clean = await self._providers.build_from_name(definition.unique_name, self._resolver)
+                    value, clean = await self._providers.build_from_name(
+                        definition.unique_name, self._resolver
+                    )
                     self._internal_cache[definition.unique_name] = value
 
                     cleanups.append(clean)

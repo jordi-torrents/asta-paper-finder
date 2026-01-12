@@ -15,10 +15,13 @@ from ai2i.dcollection import (
     Snippet,
 )
 from ai2i.di import DI
-
 from mabool.agents.snowball.snowball_utils import add_snowball_origins
 from mabool.external_api import external_api_deps
-from mabool.external_api.rerank.cohere import RerankScoreDocInput, RerankScoreInput, RerankScorer
+from mabool.external_api.rerank.cohere import (
+    RerankScoreDocInput,
+    RerankScoreInput,
+    RerankScorer,
+)
 from mabool.utils.dc import DC
 
 logger = logging.getLogger(__name__)
@@ -31,7 +34,10 @@ def _collect_cited_corpus_ids(doc_collection: DocumentCollection) -> dict[str, A
             continue
         for sentence in doc.snippets:
             all_cited_corpus_ids = set(
-                [ref_mention.matched_paper_corpus_id for ref_mention in (sentence.ref_mentions or [])]
+                [
+                    ref_mention.matched_paper_corpus_id
+                    for ref_mention in (sentence.ref_mentions or [])
+                ]
             )
             if all_cited_corpus_ids:
                 for cited_corpus_id in sorted(all_cited_corpus_ids):
@@ -49,7 +55,9 @@ def _collect_cited_corpus_ids(doc_collection: DocumentCollection) -> dict[str, A
                     if sentence.similarity_scores is not None:
                         for score in sentence.similarity_scores:
                             aggs["total_hits"] += 1
-                            model_scores = aggs["scores"].get(score.similarity_model_name, [])
+                            model_scores = aggs["scores"].get(
+                                score.similarity_model_name, []
+                            )
                             model_scores.append(score.score)
                             aggs["scores"][score.similarity_model_name] = model_scores
 
@@ -57,7 +65,9 @@ def _collect_cited_corpus_ids(doc_collection: DocumentCollection) -> dict[str, A
     return cited_corpus_ids
 
 
-def _cited_corpus_ids_to_df(cited_corpus_ids: dict[str, Any]) -> tuple[pd.DataFrame, list[str]]:
+def _cited_corpus_ids_to_df(
+    cited_corpus_ids: dict[str, Any],
+) -> tuple[pd.DataFrame, list[str]]:
     cited_corpus_ids_for_df = []
 
     clean_model_names = []
@@ -93,7 +103,9 @@ def _get_cited_corpus_ids_scores_df(
         return pd.DataFrame(), []
     cited_corpus_ids = _collect_cited_corpus_ids(doc_collection)
 
-    cited_corpus_ids_scores_df, clean_model_names = _cited_corpus_ids_to_df(cited_corpus_ids)
+    cited_corpus_ids_scores_df, clean_model_names = _cited_corpus_ids_to_df(
+        cited_corpus_ids
+    )
     return cited_corpus_ids_scores_df, clean_model_names
 
 
@@ -107,14 +119,22 @@ def scoring_func(
 ) -> float:
     row = row.fillna(0.0)
     score: float = total_hits_bias * row["total_hits"]
-    vespa_models = [model for model in models if "vespa" in model and model in row.index]
+    vespa_models = [
+        model for model in models if "vespa" in model and model in row.index
+    ]
     if vespa_models:
         score += vespa_bias * row[vespa_models].median()
-    abst_models = [model for model in models if model not in vespa_models and "abst" in model and model in row.index]
+    abst_models = [
+        model
+        for model in models
+        if model not in vespa_models and "abst" in model and model in row.index
+    ]
     if abst_models:
         score += abst_bias * row[abst_models].median()
     other_models = [  # e5
-        model for model in models if model not in vespa_models and model not in abst_models and model in row.index
+        model
+        for model in models
+        if model not in vespa_models and model not in abst_models and model in row.index
     ]
     if other_models:
         score += e5_bias * row[other_models].median()
@@ -151,7 +171,11 @@ def get_cited_corpus_ids_scores(
 def split_text_to_sentence_offsets(snippet: Snippet) -> list[SentenceOffsets]:
     sentence_offsets = []
     start = 0
-    text = snippet.text.replace(" et. al. ", "<ETX_ALX>").replace(" et. ", "<ETX>").replace(" al. ", "<ALX>")
+    text = (
+        snippet.text.replace(" et. al. ", "<ETX_ALX>")
+        .replace(" et. ", "<ETX>")
+        .replace(" al. ", "<ALX>")
+    )
     snippet_char_start_offset = snippet.char_start_offset or 0
     for i in range(1, len(text) - 1):
         c = text[i]
@@ -190,7 +214,11 @@ def _align_ref_mentions(
 
     sentence_idx_to_ref_mentions: dict[int, list[RefMention]] = defaultdict(list)
     for ref in snippet.ref_mentions:
-        if not snippet.sentences or not ref.within_snippet_offset_start or not ref.within_snippet_offset_end:
+        if (
+            not snippet.sentences
+            or not ref.within_snippet_offset_start
+            or not ref.within_snippet_offset_end
+        ):
             continue
         for i, offset in enumerate(sentence_offsets):
             if (
@@ -209,8 +237,10 @@ def _align_ref_mentions(
                 # fix ref offsets
                 new_ref: RefMention = RefMention(
                     matched_paper_corpus_id=ref.matched_paper_corpus_id,
-                    within_snippet_offset_start=ref.within_snippet_offset_start - offset.within_snippet_offset.start,
-                    within_snippet_offset_end=ref.within_snippet_offset_end - offset.within_snippet_offset.start,
+                    within_snippet_offset_start=ref.within_snippet_offset_start
+                    - offset.within_snippet_offset.start,
+                    within_snippet_offset_end=ref.within_snippet_offset_end
+                    - offset.within_snippet_offset.start,
                 )
 
                 sentence_idx_to_ref_mentions[i].append(new_ref)
@@ -223,12 +253,15 @@ def _align_ref_mentions(
 
 def split_snippets_to_sentence_snippets(snippet: Snippet) -> list[Snippet]:
     if snippet.similarity_scores and any(
-        ("bifroest" in score.similarity_model_name) for score in snippet.similarity_scores
+        ("bifroest" in score.similarity_model_name)
+        for score in snippet.similarity_scores
     ):
         return [snippet]
     if not snippet.text or snippet.char_start_offset is None:
         return [snippet]
-    if not snippet.sentences or not all(o.within_snippet_offset for o in snippet.sentences):
+    if not snippet.sentences or not all(
+        o.within_snippet_offset for o in snippet.sentences
+    ):
         sentence_offsets = split_text_to_sentence_offsets(snippet)
     else:
         sentence_offsets = snippet.sentences
@@ -242,10 +275,16 @@ def split_snippets_to_sentence_snippets(snippet: Snippet) -> list[Snippet]:
         ):
             continue
         sentence = Snippet(
-            text=snippet.text[offset.within_snippet_offset.start : offset.within_snippet_offset.end],
+            text=snippet.text[
+                offset.within_snippet_offset.start : offset.within_snippet_offset.end
+            ],
             similarity_scores=snippet.similarity_scores,
-            char_start_offset=(snippet.char_start_offset + offset.within_snippet_offset.start),
-            char_end_offset=(snippet.char_start_offset + offset.within_snippet_offset.end),
+            char_start_offset=(
+                snippet.char_start_offset + offset.within_snippet_offset.start
+            ),
+            char_end_offset=(
+                snippet.char_start_offset + offset.within_snippet_offset.end
+            ),
         )
         sentences.append(sentence)
 
@@ -262,12 +301,16 @@ def _flatten(lst: list[Any]) -> list[Any]:
     return [item for sublist in lst for item in sublist]
 
 
-def get_citation_contexts_from_snippets(doc_collection: DocumentCollection) -> dict[str, list[CitationContext]]:
+def get_citation_contexts_from_snippets(
+    doc_collection: DocumentCollection,
+) -> dict[str, list[CitationContext]]:
     sents_with_ref_mentions = defaultdict(list)
     for doc in doc_collection.documents:
         if not doc.snippets:
             continue
-        sentences = _flatten([split_snippets_to_sentence_snippets(snippet) for snippet in doc.snippets])
+        sentences = _flatten(
+            [split_snippets_to_sentence_snippets(snippet) for snippet in doc.snippets]
+        )
         for sentence in sentences:
             if sentence.ref_mentions:
                 for ref in sentence.ref_mentions:
@@ -277,9 +320,16 @@ def get_citation_contexts_from_snippets(doc_collection: DocumentCollection) -> d
                             source_corpus_id=doc.corpus_id,
                             within_snippet_offset_start=ref.within_snippet_offset_start,
                             within_snippet_offset_end=ref.within_snippet_offset_end,
-                            similarity_score=max([score.score for score in sentence.similarity_scores])
-                            if sentence.similarity_scores
-                            else 0.0,
+                            similarity_score=(
+                                max(
+                                    [
+                                        score.score
+                                        for score in sentence.similarity_scores
+                                    ]
+                                )
+                                if sentence.similarity_scores
+                                else 0.0
+                            ),
                         )  # NOTE: this will behave weirdly with multiple model scores
                     )
     # sort each list of sentences by score
@@ -300,8 +350,7 @@ async def rerank_citation_contexts(
             query=input_query,
             docs=[
                 RerankScoreDocInput(
-                    corpus_id=corpus_id,
-                    text="\n".join([c.text for c in contexts if c]),
+                    corpus_id=corpus_id, text="\n".join([c.text for c in contexts if c])
                 )
                 for corpus_id, contexts in papers.items()
                 if contexts
@@ -324,7 +373,9 @@ async def get_top_cited_corpus_ids(
 ) -> tuple[list[str], dict[str, float]]:
     if not fast_mode:
         top_corpus_ids_for_rerank = sorted(
-            cited_corpus_ids_scores, key=lambda k: cited_corpus_ids_scores[k], reverse=True
+            cited_corpus_ids_scores,
+            key=lambda k: cited_corpus_ids_scores[k],
+            reverse=True,
         )[:1000]
         try:
             rerank_scores = await rerank_citation_contexts(
@@ -338,11 +389,17 @@ async def get_top_cited_corpus_ids(
         if rerank_scores and not all(score == 0.0 for score in rerank_scores.values()):
             cited_corpus_ids_scores = rerank_scores
 
-        cited_corpus_ids_scores = {k: v for k, v in cited_corpus_ids_scores.items() if v > rerank_score_threshold}
+        cited_corpus_ids_scores = {
+            k: v
+            for k, v in cited_corpus_ids_scores.items()
+            if v > rerank_score_threshold
+        }
 
-    top_corpus_ids = sorted(cited_corpus_ids_scores, key=lambda k: (cited_corpus_ids_scores[k], k), reverse=True)[
-        :top_k
-    ]
+    top_corpus_ids = sorted(
+        cited_corpus_ids_scores,
+        key=lambda k: (cited_corpus_ids_scores[k], k),
+        reverse=True,
+    )[:top_k]
     return top_corpus_ids, cited_corpus_ids_scores
 
 
@@ -358,7 +415,9 @@ async def run_snippet_snowball(
         citation_contexts = get_citation_contexts_from_snippets(doc_collection)
         cited_corpus_ids_scores = get_cited_corpus_ids_scores(doc_collection)
         cited_corpus_ids_scores = {
-            k: v for k, v in cited_corpus_ids_scores.items() if k in citation_contexts and citation_contexts[k]
+            k: v
+            for k, v in cited_corpus_ids_scores.items()
+            if k in citation_contexts and citation_contexts[k]
         }
         if not cited_corpus_ids_scores or not citation_contexts:
             return DC.empty()
@@ -372,7 +431,9 @@ async def run_snippet_snowball(
 
         # add citation contexts
         top_cited_docs = top_cited_docs.map(
-            lambda doc: doc.clone_with({"citation_contexts": citation_contexts.get(doc.corpus_id, [])})
+            lambda doc: doc.clone_with(
+                {"citation_contexts": citation_contexts.get(doc.corpus_id, [])}
+            )
         )
 
         # add scores
@@ -381,15 +442,22 @@ async def run_snippet_snowball(
                 AssignedField[float](
                     field_name="snippet_snowball_score",
                     assigned_values=[
-                        cited_corpus_ids_scores.get(doc.corpus_id, 0.0) for doc in top_cited_docs.documents
+                        cited_corpus_ids_scores.get(doc.corpus_id, 0.0)
+                        for doc in top_cited_docs.documents
                     ],
-                ),
+                )
             ]
         )
         top_cited_docs = top_cited_docs.sorted(
-            [DocumentCollectionSortDef(field_name="snippet_snowball_score", order="desc")]
+            [
+                DocumentCollectionSortDef(
+                    field_name="snippet_snowball_score", order="desc"
+                )
+            ]
         )
-        top_cited_docs = add_snowball_origins(top_cited_docs, variant="snippets", search_iteration=search_iteration)
+        top_cited_docs = add_snowball_origins(
+            top_cited_docs, variant="snippets", search_iteration=search_iteration
+        )
         return top_cited_docs
     except Exception as e:
         logger.exception(f"Failed to run snippet snowball: {e}")

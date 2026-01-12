@@ -81,16 +81,19 @@ class LLMModel:
                 return LLMModel.gemini2flash(**params)
             case model_name:
                 if ":" not in model_name:
-                    raise ValueError("LLM model name must be in the format `family:model`.")
+                    raise ValueError(
+                        "LLM model name must be in the format `family:model`."
+                    )
                 family, model = model_name.split(":", maxsplit=1)
-                return LLMModel(name=model, family=family, params={**LLMModel._get_default_llm_params(), **params})
+                return LLMModel(
+                    name=model,
+                    family=family,
+                    params={**LLMModel._get_default_llm_params(), **params},
+                )
 
     @staticmethod
     def _get_default_llm_params() -> LLMModelParams:
-        return {
-            "temperature": DEFAULT_TEMPERATURE,
-            "n": DEFAULT_N,
-        }
+        return {"temperature": DEFAULT_TEMPERATURE, "n": DEFAULT_N}
 
     @staticmethod
     def gpt4o(**params: Unpack[LLMModelParams]) -> LLMModel:

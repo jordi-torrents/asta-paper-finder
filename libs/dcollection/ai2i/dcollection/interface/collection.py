@@ -6,9 +6,6 @@ from functools import partial
 from typing import Any, Awaitable, Callable, Literal, Mapping, Protocol, Self, Sequence
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.fields import FieldInfo
-
 from ai2i.dcollection.data_access_context import (
     ComputationId,
     DocumentCollectionContext,
@@ -35,6 +32,8 @@ from ai2i.dcollection.interface.document import (
     Snippet,
     SortOrder,
 )
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.fields import FieldInfo
 
 Arm = int | float | str
 Num = int | float
@@ -45,8 +44,12 @@ def fuse_citation_contexts[DFN: str](
     fuse_from: DynamicallyLoadedEntity[DFN],
     field: str,
 ) -> None:
-    fuse_to_citation_contexts = getattr(fuse_to, field) if fuse_to.is_loaded(field) else []
-    fuse_from_citation_contexts = getattr(fuse_from, field) if fuse_from.is_loaded(field) else []
+    fuse_to_citation_contexts = (
+        getattr(fuse_to, field) if fuse_to.is_loaded(field) else []
+    )
+    fuse_from_citation_contexts = (
+        getattr(fuse_from, field) if fuse_from.is_loaded(field) else []
+    )
 
     if fuse_to_citation_contexts or fuse_from_citation_contexts:
         fuse_to_citation_contexts_set = set(fuse_to_citation_contexts)
@@ -54,7 +57,9 @@ def fuse_citation_contexts[DFN: str](
         # NOTE: this is sub-optimal, contexts should be sorted by relevance/similarity
         #       to the query, but we don't have this information here
         fused_citation_contexts = fuse_to_citation_contexts + [
-            context for context in fuse_from_citation_contexts if context not in fuse_to_citation_contexts_set
+            context
+            for context in fuse_from_citation_contexts
+            if context not in fuse_to_citation_contexts_set
         ]
         setattr(fuse_to, field, fused_citation_contexts)
 
@@ -82,13 +87,13 @@ def dynamic_field(
     required_fields: Sequence[DocumentFieldName] | None = None,
     **kwargs: Any,
 ) -> Any:
-    return DynamicField(*args, loaders=loaders, fuse=fuse, required_fields=required_fields, **kwargs)
+    return DynamicField(
+        *args, loaders=loaders, fuse=fuse, required_fields=required_fields, **kwargs
+    )
 
 
 def external_dynamic_field(
-    *args: Any,
-    fuse: Fuser[DocumentFieldName] = TakeFirst(),
-    **kwargs: Any,
+    *args: Any, fuse: Fuser[DocumentFieldName] = TakeFirst(), **kwargs: Any
 ) -> Any:
     return DynamicField(*args, fuse=fuse, extra=True, mandatory_loader=True, **kwargs)
 
@@ -100,7 +105,9 @@ class DocLoadingError(Exception):
         super().__init__(f"Error in corpus {corpus_id}: {str(original_exception)}")
 
     def __str__(self):
-        return f"CorpusError(corpus_id={self.corpus_id}): {str(self.original_exception)}"
+        return (
+            f"CorpusError(corpus_id={self.corpus_id}): {str(self.original_exception)}"
+        )
 
     @property
     def entity_id(self) -> EntityId:
@@ -160,12 +167,18 @@ class Document(ABC, DynamicallyLoadedEntity[DocumentFieldName]):
 
     @abstractmethod
     def assign_loaded_values(
-        self, field_names: Sequence[DocumentFieldName], loaded_entities: Sequence[Document]
+        self,
+        field_names: Sequence[DocumentFieldName],
+        loaded_entities: Sequence[Document],
     ) -> None: ...
 
     @abstractmethod
     def dynamic_value[V](
-        self, field_name: DocumentFieldName, field_type: type[V], /, default: V | None = None
+        self,
+        field_name: DocumentFieldName,
+        field_type: type[V],
+        /,
+        default: V | None = None,
     ) -> V | None: ...
 
     @abstractmethod
@@ -267,14 +280,18 @@ class DocumentCollection(BaseModel, ABC):
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     documents: Sequence[Document] = Field(default_factory=list)
-    computed_fields: dict[DocumentFieldName, DynamicField] = Field(default_factory=dict, exclude=True)
+    computed_fields: dict[DocumentFieldName, DynamicField] = Field(
+        default_factory=dict, exclude=True
+    )
     factory: BaseDocumentCollectionFactory = Field(exclude=True)
 
     @abstractmethod
     def map(self, map_fn: DocumentProjector[Document]) -> DocumentCollection: ...
 
     @abstractmethod
-    def map_enumerate(self, map_fn: DocumentEnumProjector[Document]) -> DocumentCollection: ...
+    def map_enumerate(
+        self, map_fn: DocumentEnumProjector[Document]
+    ) -> DocumentCollection: ...
 
     @abstractmethod
     def filter(self, filter_fn: DocumentPredicate) -> DocumentCollection: ...
@@ -286,7 +303,9 @@ class DocumentCollection(BaseModel, ABC):
     def project[V](self, map_fn: DocumentProjector[V]) -> list[V]: ...
 
     @abstractmethod
-    def group_by[V](self, group_fn: DocumentProjector[V]) -> dict[V, DocumentCollection]: ...
+    def group_by[V](
+        self, group_fn: DocumentProjector[V]
+    ) -> dict[V, DocumentCollection]: ...
 
     @abstractmethod
     def take(self, n: int) -> DocumentCollection: ...
@@ -296,14 +315,19 @@ class DocumentCollection(BaseModel, ABC):
 
     @abstractmethod
     async def with_fields(
-        self, fields: Sequence[DocumentFieldName | BaseComputedField[DocumentFieldName, Any]]
+        self,
+        fields: Sequence[DocumentFieldName | BaseComputedField[DocumentFieldName, Any]],
     ) -> DocumentCollection: ...
 
     @abstractmethod
-    def update_computed_fields(self, fields: Sequence[DocumentFieldName | BaseComputedField]) -> DocumentCollection: ...
+    def update_computed_fields(
+        self, fields: Sequence[DocumentFieldName | BaseComputedField]
+    ) -> DocumentCollection: ...
 
     @abstractmethod
-    def sorted(self, sort_definitions: Sequence[DocumentCollectionSortDef]) -> DocumentCollection: ...
+    def sorted(
+        self, sort_definitions: Sequence[DocumentCollectionSortDef]
+    ) -> DocumentCollection: ...
 
     @abstractmethod
     def __add__(self, other: DocumentCollection) -> DocumentCollection: ...
@@ -315,7 +339,9 @@ class DocumentCollection(BaseModel, ABC):
     def subtract(self, other: DocumentCollection) -> DocumentCollection: ...
 
     @abstractmethod
-    def multi_group_by[V](self, group_fn: DocumentProjector[Sequence[V]]) -> dict[V, DocumentCollection]: ...
+    def multi_group_by[V](
+        self, group_fn: DocumentProjector[Sequence[V]]
+    ) -> dict[V, DocumentCollection]: ...
 
     @abstractmethod
     def to_dataframe(
@@ -328,9 +354,7 @@ class DocumentCollection(BaseModel, ABC):
     def sample(self, n: int, method: SampleMethod) -> DocumentCollection: ...
 
     @abstractmethod
-    def to_debug_dataframe(
-        self,
-    ) -> pd.DataFrame: ...
+    def to_debug_dataframe(self) -> pd.DataFrame: ...
 
     @abstractmethod
     def to_field_requirements(
@@ -405,7 +429,11 @@ class BaseComputedField[DFN: str, V](BaseModel):
             (
                 str(self.computation.func.__code__),
                 self.computation.args,
-                frozenset(self.computation.keywords.items()) if self.computation.keywords else None,
+                (
+                    frozenset(self.computation.keywords.items())
+                    if self.computation.keywords
+                    else None
+                ),
             )
             if isinstance(self.computation, partial)
             else str(self.computation.__code__)
@@ -426,7 +454,11 @@ BASIC_FIELDS: list[DocumentFieldName] = [
     "abstract",
     "venue",
 ]
-UI_REQUIRED_FIELDS: list[DocumentFieldName] = ["publication_date", "journal", "citation_count"]
+UI_REQUIRED_FIELDS: list[DocumentFieldName] = [
+    "publication_date",
+    "journal",
+    "citation_count",
+]
 CITATION_FIELDS: list[DocumentFieldName] = [
     "citations",
     "references",
@@ -434,11 +466,7 @@ CITATION_FIELDS: list[DocumentFieldName] = [
     "reference_count",
     "influential_citation_count",
 ]
-S2_FIELDS: list[DocumentFieldName] = [
-    *BASIC_FIELDS,
-    *CITATION_FIELDS,
-    "tldr",
-]
+S2_FIELDS: list[DocumentFieldName] = [*BASIC_FIELDS, *CITATION_FIELDS, "tldr"]
 ALL_FIELDS: list[DocumentFieldName] = [
     *BASIC_FIELDS,
     *CITATION_FIELDS,

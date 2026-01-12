@@ -9,7 +9,12 @@ from semanticscholar.Paper import Paper as Paper
 
 class SemanticScholar:
     def __init__(
-        self, timeout: int = 30, api_key: str = None, api_url: str = None, debug: bool = False, retry: bool = True
+        self,
+        timeout: int = 30,
+        api_key: str = None,
+        api_url: str = None,
+        debug: bool = False,
+        retry: bool = True,
     ) -> None: ...
     @property
     def timeout(self) -> int: ...
@@ -27,9 +32,15 @@ class SemanticScholar:
     def get_papers(
         self, paper_ids: list[str], fields: list = None, return_not_found: bool = False
     ) -> list[Paper] | tuple[list[Paper], list[str]]: ...
-    def get_paper_authors(self, paper_id: str, fields: list = None, limit: int = 100) -> PaginatedResults: ...
-    def get_paper_citations(self, paper_id: str, fields: list = None, limit: int = 100) -> PaginatedResults: ...
-    def get_paper_references(self, paper_id: str, fields: list = None, limit: int = 100) -> PaginatedResults: ...
+    def get_paper_authors(
+        self, paper_id: str, fields: list = None, limit: int = 100
+    ) -> PaginatedResults: ...
+    def get_paper_citations(
+        self, paper_id: str, fields: list = None, limit: int = 100
+    ) -> PaginatedResults: ...
+    def get_paper_references(
+        self, paper_id: str, fields: list = None, limit: int = 100
+    ) -> PaginatedResults: ...
     def search_paper(
         self,
         query: str,
@@ -50,11 +61,23 @@ class SemanticScholar:
     def get_authors(
         self, author_ids: list[str], fields: list = None, return_not_found: bool = False
     ) -> list[Author] | tuple[list[Author], list[str]]: ...
-    def get_author_papers(self, author_id: str, fields: list = None, limit: int = 100) -> PaginatedResults: ...
-    def search_author(self, query: str, fields: list = None, limit: int = 100) -> PaginatedResults: ...
+    def get_author_papers(
+        self, author_id: str, fields: list = None, limit: int = 100
+    ) -> PaginatedResults: ...
+    def search_author(
+        self, query: str, fields: list = None, limit: int = 100
+    ) -> PaginatedResults: ...
     def get_recommended_papers(
-        self, paper_id: str, fields: list = None, limit: int = 100, pool_from: Literal["recent", "all-cs"] = "recent"
+        self,
+        paper_id: str,
+        fields: list = None,
+        limit: int = 100,
+        pool_from: Literal["recent", "all-cs"] = "recent",
     ) -> list[Paper]: ...
     def get_recommended_papers_from_lists(
-        self, positive_paper_ids: list[str], negative_paper_ids: list[str] = None, fields: list = None, limit: int = 100
+        self,
+        positive_paper_ids: list[str],
+        negative_paper_ids: list[str] = None,
+        fields: list = None,
+        limit: int = 100,
     ) -> list[Paper]: ...

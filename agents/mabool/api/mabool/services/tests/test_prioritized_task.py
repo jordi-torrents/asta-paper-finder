@@ -2,7 +2,6 @@ import asyncio
 from typing import List, ParamSpec, TypeVar
 
 import pytest
-
 from mabool.services.prioritized_task import (
     PrioritySemaphore,
     prioritized,
@@ -208,6 +207,8 @@ async def test_to_priority_non_decorator() -> None:
     prioritized_task2 = with_priority(task, semaphore, 1)
     prioritized_task3 = with_priority(task, semaphore, 0)
 
-    await asyncio.gather(dummy_task(), prioritized_task1(1), prioritized_task2(2), prioritized_task3(3))
+    await asyncio.gather(
+        dummy_task(), prioritized_task1(1), prioritized_task2(2), prioritized_task3(3)
+    )
 
     assert order == [3, 2, 1]

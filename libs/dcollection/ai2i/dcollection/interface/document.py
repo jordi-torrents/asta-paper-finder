@@ -47,12 +47,19 @@ class CitationContext(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    def mark_within_snippet_offset(self, before: str = "<<<", after: str = ">>>") -> str:
-        if self.within_snippet_offset_start is not None and self.within_snippet_offset_end is not None:
+    def mark_within_snippet_offset(
+        self, before: str = "<<<", after: str = ">>>"
+    ) -> str:
+        if (
+            self.within_snippet_offset_start is not None
+            and self.within_snippet_offset_end is not None
+        ):
             return (
                 self.text[: self.within_snippet_offset_start]
                 + before
-                + self.text[self.within_snippet_offset_start : self.within_snippet_offset_end]
+                + self.text[
+                    self.within_snippet_offset_start : self.within_snippet_offset_end
+                ]
                 + after
                 + self.text[self.within_snippet_offset_end :]
             )
@@ -151,12 +158,7 @@ class BoundingBox(BaseModel):
     w: float
 
 
-section_kind_order = {
-    "title": 0,
-    "abstract": 1,
-    "body": 2,
-    None: 3,
-}
+section_kind_order = {"title": 0, "abstract": 1, "body": 2, None: 3}
 
 
 class RefMention(BaseModel):
@@ -196,19 +198,25 @@ class Snippet(BaseModel):
 
     def __eq__(self, other: Any) -> bool:
         return (
-            isinstance(other, Snippet) and self.text == other.text and self.char_start_offset == other.char_start_offset
+            isinstance(other, Snippet)
+            and self.text == other.text
+            and self.char_start_offset == other.char_start_offset
         )
 
     def __lt__(self, other: Any) -> bool:
         if not isinstance(other, Snippet):
             return NotImplemented
         return (
-            section_kind_order.get(self.section_kind, max(section_kind_order.values()) + 1),
+            section_kind_order.get(
+                self.section_kind, max(section_kind_order.values()) + 1
+            ),
             self.char_start_offset if self.char_start_offset is not None else 0,
             self.char_end_offset if self.char_end_offset is not None else 0,
             self.text,
         ) < (
-            section_kind_order.get(other.section_kind, max(section_kind_order.values()) + 1),
+            section_kind_order.get(
+                other.section_kind, max(section_kind_order.values()) + 1
+            ),
             other.char_start_offset if other.char_start_offset is not None else 0,
             other.char_end_offset if other.char_end_offset is not None else 0,
             other.text,
@@ -243,11 +251,15 @@ class Sentence(BaseModel):
         if not isinstance(other, Sentence):
             return NotImplemented
         return (
-            section_kind_order.get(self.section_kind, max(section_kind_order.values()) + 1),
+            section_kind_order.get(
+                self.section_kind, max(section_kind_order.values()) + 1
+            ),
             self.char_start_offset if self.char_start_offset else 0,
             self.text,
         ) < (
-            section_kind_order.get(other.section_kind, max(section_kind_order.values()) + 1),
+            section_kind_order.get(
+                other.section_kind, max(section_kind_order.values()) + 1
+            ),
             other.char_start_offset if other.char_start_offset else 0,
             other.text,
         )
@@ -264,7 +276,9 @@ class Sentence(BaseModel):
             char_start_offset=snippet.char_start_offset,
             char_end_offset=snippet.char_end_offset,
             cited_s2_ids=(
-                [int(ref.matched_paper_corpus_id) for ref in snippet.ref_mentions] if snippet.ref_mentions else []
+                [int(ref.matched_paper_corpus_id) for ref in snippet.ref_mentions]
+                if snippet.ref_mentions
+                else []
             ),
             similarity_scores=snippet.similarity_scores,
             bounding_boxes=snippet.bounding_boxes,
@@ -278,7 +292,9 @@ class S2PaperRelevanceSearchQuery(BaseModel):
     venues: Sequence[str] | None = None
 
     def __hash__(self) -> int:
-        return hash((self.query, self.num_results, self.time_range, ",".join(self.venues or [])))
+        return hash(
+            (self.query, self.num_results, self.time_range, ",".join(self.venues or []))
+        )
 
 
 class S2PaperTitleSearchQuery(BaseModel):
@@ -305,7 +321,10 @@ class S2CitingPapersQuery(BaseModel):
 
 
 S2PaperOriginQuery = (
-    S2PaperRelevanceSearchQuery | S2PaperTitleSearchQuery | S2AuthorPaperSearchQuery | S2CitingPapersQuery
+    S2PaperRelevanceSearchQuery
+    | S2PaperTitleSearchQuery
+    | S2AuthorPaperSearchQuery
+    | S2CitingPapersQuery
 )
 
 
@@ -339,11 +358,29 @@ class OriginQuery(BaseModel):
         )
 
     def __hash__(self) -> int:
-        return hash((self.query_type, self.provider, self.dataset, self.variant, self.query, self.iteration))
+        return hash(
+            (
+                self.query_type,
+                self.provider,
+                self.dataset,
+                self.variant,
+                self.query,
+                self.iteration,
+            )
+        )
 
     def __repr__(self) -> str:
         return " | ".join(
-            filter(None, [str(self.query_type), self.provider, self.dataset, self.variant, str(self.query)])
+            filter(
+                None,
+                [
+                    str(self.query_type),
+                    self.provider,
+                    self.dataset,
+                    self.variant,
+                    str(self.query),
+                ],
+            )
         )
 
 
@@ -366,8 +403,14 @@ class RelevanceCriteria(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    def to_flat_criteria(self, include_nice_to_have: bool = True) -> list[RelevanceCriterion]:
-        return (self.required_relevance_critieria if self.required_relevance_critieria else []) + (
+    def to_flat_criteria(
+        self, include_nice_to_have: bool = True
+    ) -> list[RelevanceCriterion]:
+        return (
+            self.required_relevance_critieria
+            if self.required_relevance_critieria
+            else []
+        ) + (
             self.nice_to_have_relevance_criteria
             if include_nice_to_have and self.nice_to_have_relevance_criteria
             else []
@@ -377,15 +420,22 @@ class RelevanceCriteria(BaseModel):
         return (
             self.required_relevance_critieria is not None
             and len(self.required_relevance_critieria) == 1
-            and self.required_relevance_critieria[0].name == DEFAULT_CONTENT_RELEVANCE_CRITERION_NAME
+            and self.required_relevance_critieria[0].name
+            == DEFAULT_CONTENT_RELEVANCE_CRITERION_NAME
         )
 
     @staticmethod
-    def to_default_content_criteria(relevance_criteria: RelevanceCriteria, content: str) -> RelevanceCriteria:
+    def to_default_content_criteria(
+        relevance_criteria: RelevanceCriteria, content: str
+    ) -> RelevanceCriteria:
         return RelevanceCriteria(
             **relevance_criteria.model_dump(exclude={"required_relevance_critieria"}),
             required_relevance_critieria=[
-                RelevanceCriterion(name=DEFAULT_CONTENT_RELEVANCE_CRITERION_NAME, description=content, weight=1.0)
+                RelevanceCriterion(
+                    name=DEFAULT_CONTENT_RELEVANCE_CRITERION_NAME,
+                    description=content,
+                    weight=1.0,
+                )
             ],
         )
 
@@ -395,7 +445,8 @@ class RelevanceCriteria(BaseModel):
         return bool(
             self.query == other.query
             and self.required_relevance_critieria == other.required_relevance_critieria
-            and self.nice_to_have_relevance_criteria == other.nice_to_have_relevance_criteria
+            and self.nice_to_have_relevance_criteria
+            == other.nice_to_have_relevance_criteria
             and self.clarification_questions == other.clarification_questions
         )
 
@@ -427,7 +478,10 @@ rj_4l_codes = {
 
 
 type SampleMethod = Literal[
-    "random_stratified_relevance", "random", "top_relevance", "bottom_origin_rank_stratified_relevance"
+    "random_stratified_relevance",
+    "random",
+    "top_relevance",
+    "bottom_origin_rank_stratified_relevance",
 ]
 DocumentFieldName = (
     Literal[

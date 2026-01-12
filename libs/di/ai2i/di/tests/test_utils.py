@@ -2,7 +2,6 @@ from contextlib import nullcontext
 from random import shuffle
 
 import pytest
-
 from ai2i.di.interface.errors import CyclicDependecyError
 from ai2i.di.interface.models import DependencyDefinition
 from ai2i.di.utils import dependency_topological_sort

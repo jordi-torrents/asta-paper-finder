@@ -2,7 +2,6 @@ import asyncio
 from typing import AsyncIterator, Sequence
 
 import pytest
-
 from ai2i.common.utils.batch import batch_process, with_batch
 
 

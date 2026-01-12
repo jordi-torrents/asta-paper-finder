@@ -4,7 +4,6 @@ from typing import Sequence
 from ai2i.chain import LLMModel, ModelName, Timeouts, define_llm_endpoint
 from ai2i.dcollection import CorpusId, DocumentCollection, SampleMethod
 from ai2i.di import DI
-
 from mabool.agents.common.relevance_judgement_utils import get_relevant_docs
 from mabool.agents.dense.formulation_prompts import (
     dense_formulate_prompts,
@@ -24,7 +23,9 @@ async def get_reformulated_dense_queries(
     search_query: str,
     documents: DocumentCollection,
     model_name: ModelName,
-    anchor_doc_collection: DocumentCollection = DI.requires(dc_deps.empty_doc_collection),
+    anchor_doc_collection: DocumentCollection = DI.requires(
+        dc_deps.empty_doc_collection
+    ),
     max_docs_in_prompt: int = 10,
     doc_sampling_method: SampleMethod = "bottom_origin_rank_stratified_relevance",
     max_queries_to_generate: int = 10,
@@ -54,7 +55,10 @@ async def get_reformulated_dense_queries(
             max_output_for_each_prompt[i] += 1
         dense_formulate_coroutines = [
             endpoint.execute(dense_formulate).once(
-                {"search_query": search_query, "max_output": max_output_for_each_prompt[i]}
+                {
+                    "search_query": search_query,
+                    "max_output": max_output_for_each_prompt[i],
+                }
             )
             for i, dense_formulate in enumerate(dense_formulate_prompts)
         ]
@@ -74,8 +78,12 @@ async def get_reformulated_dense_queries(
     else:
         relevant_docs = get_relevant_docs(documents, relevance_threshold)
         if exclude_corpus_ids:
-            logger.info(f"Excluding {len(exclude_corpus_ids)} corpus ids from reformulation prompt.")
-            relevant_docs = relevant_docs.filter(lambda doc: doc.corpus_id not in exclude_corpus_ids)
+            logger.info(
+                f"Excluding {len(exclude_corpus_ids)} corpus ids from reformulation prompt."
+            )
+            relevant_docs = relevant_docs.filter(
+                lambda doc: doc.corpus_id not in exclude_corpus_ids
+            )
 
         logger.info(
             f"Found {len(relevant_docs)} relevant documents to use as examples for reformulation \
@@ -84,11 +92,16 @@ async def get_reformulated_dense_queries(
 
         if len(relevant_docs) > 0 or len(anchor_doc_collection) > 0:
             relevant_docs = anchor_doc_collection + relevant_docs.sample(
-                max_docs_in_prompt - len(anchor_doc_collection), method=doc_sampling_method
+                max_docs_in_prompt - len(anchor_doc_collection),
+                method=doc_sampling_method,
             )
 
-            logger.info(f"Reformulating dense query based on top {len(relevant_docs)} relevant documents.")
-            highly_relevant_doc_texts = "\n\n".join(doc.markdown or "" for doc in relevant_docs.documents)
+            logger.info(
+                f"Reformulating dense query based on top {len(relevant_docs)} relevant documents."
+            )
+            highly_relevant_doc_texts = "\n\n".join(
+                doc.markdown or "" for doc in relevant_docs.documents
+            )
             reformulated_queries = await endpoint.execute(dense_reformulate).once(
                 {
                     "search_query": search_query,
@@ -98,7 +111,9 @@ async def get_reformulated_dense_queries(
             )
             if use_search_query_as_one_of_the_queries:
                 reformulated_queries = [search_query] + reformulated_queries
-            return reformulated_queries, [doc.corpus_id for doc in relevant_docs.documents]
+            return reformulated_queries, [
+                doc.corpus_id for doc in relevant_docs.documents
+            ]
         else:
             logger.warning("No relevant documents found for reformulation.")
             return [], []

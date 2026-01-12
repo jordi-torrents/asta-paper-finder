@@ -41,7 +41,9 @@ class FormulateDenseQueriesInput(TypedDict):
 
 
 dense_formulate = define_prompt_llm_call(
-    _dense_formulation_prompt_multiple_tmpl, input_type=FormulateDenseQueriesInput, output_type=DenseQueries
+    _dense_formulation_prompt_multiple_tmpl,
+    input_type=FormulateDenseQueriesInput,
+    output_type=DenseQueries,
 ).map(lambda o: o.alternative_queries)
 
 _alternative_dense_formulation_prompt_tmpl = """
@@ -64,7 +66,10 @@ Output a json with a single key "alternative_queries" with its value a list of q
 """  # noqa: E501
 
 dense_formulate_alternative = define_chat_llm_call(
-    [system_message(_alternative_dense_formulation_prompt_tmpl), user_message("{{search_query}}")],
+    [
+        system_message(_alternative_dense_formulation_prompt_tmpl),
+        user_message("{{search_query}}"),
+    ],
     format="mustache",
     input_type=FormulateDenseQueriesInput,
     output_type=DenseQueries,
@@ -104,5 +109,7 @@ class ReformulateDenseQueriesInput(FormulateDenseQueriesInput):
 
 
 dense_reformulate = define_prompt_llm_call(
-    _dense_reformulate_prompt_tmpl, input_type=ReformulateDenseQueriesInput, output_type=DenseQueries
+    _dense_reformulate_prompt_tmpl,
+    input_type=ReformulateDenseQueriesInput,
+    output_type=DenseQueries,
 ).map(lambda o: o.alternative_queries)

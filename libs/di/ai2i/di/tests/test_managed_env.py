@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Iterator, Never
 
 import pytest
-
 from ai2i.config import ConfigValue, with_config_overrides
 from ai2i.di.config import cfg_schema
 from ai2i.di.interface.errors import (
@@ -38,7 +37,9 @@ def env() -> ManagedEnv:
     return ManagedEnv.simple()
 
 
-async def test_basic_injection(env: ManagedEnv, some_prefix: str, some_value: str) -> None:
+async def test_basic_injection(
+    env: ManagedEnv, some_prefix: str, some_value: str
+) -> None:
     effect: str = ""
 
     @dataclass(frozen=True)
@@ -84,7 +85,9 @@ async def test_basic_injection_provider_extra_args(
     assert effect == f"{some_prefix}:{some_value};{some_value2}"
 
 
-async def test_basic_injection_default_value(env: ManagedEnv, some_prefix: str, some_value: str) -> None:
+async def test_basic_injection_default_value(
+    env: ManagedEnv, some_prefix: str, some_value: str
+) -> None:
     effect: str = ""
 
     @dataclass(frozen=True)
@@ -98,7 +101,9 @@ async def test_basic_injection_default_value(env: ManagedEnv, some_prefix: str, 
     default_value = MyValue(some_value)
 
     @env.managed
-    async def store_value(prefix: str, value: MyValue = DI.requires(my_value, default=default_value)) -> None:
+    async def store_value(
+        prefix: str, value: MyValue = DI.requires(my_value, default=default_value)
+    ) -> None:
         nonlocal effect
         effect = prefix + value.val
 
@@ -108,7 +113,9 @@ async def test_basic_injection_default_value(env: ManagedEnv, some_prefix: str, 
     assert effect == f"{some_prefix}:{some_value}"
 
 
-async def test_basic_injection_default_factory(env: ManagedEnv, some_prefix: str, some_value: str) -> None:
+async def test_basic_injection_default_factory(
+    env: ManagedEnv, some_prefix: str, some_value: str
+) -> None:
     effect: str = ""
 
     @dataclass(frozen=True)
@@ -121,7 +128,10 @@ async def test_basic_injection_default_factory(env: ManagedEnv, some_prefix: str
 
     @env.managed
     async def store_value(
-        prefix: str, value: MyValue = DI.requires(my_value, default_factory=lambda: MyValue(some_value))
+        prefix: str,
+        value: MyValue = DI.requires(
+            my_value, default_factory=lambda: MyValue(some_value)
+        ),
     ) -> None:
         nonlocal effect
         effect = prefix + value.val
@@ -132,7 +142,9 @@ async def test_basic_injection_default_factory(env: ManagedEnv, some_prefix: str
     assert effect == f"{some_prefix}:{some_value}"
 
 
-async def test_basic_injection_missing_default_value(env: ManagedEnv, some_prefix: str) -> None:
+async def test_basic_injection_missing_default_value(
+    env: ManagedEnv, some_prefix: str
+) -> None:
     effect: str = ""
 
     @dataclass(frozen=True)
@@ -153,7 +165,9 @@ async def test_basic_injection_missing_default_value(env: ManagedEnv, some_prefi
         await store_value(f"{some_prefix}:")
 
 
-async def test_basic_provider_extra_args_error(env: ManagedEnv, some_value: str) -> None:
+async def test_basic_provider_extra_args_error(
+    env: ManagedEnv, some_value: str
+) -> None:
     @dataclass(frozen=True)
     class MyValue:
         val: str
@@ -173,7 +187,9 @@ async def test_basic_provider_extra_args_error(env: ManagedEnv, some_value: str)
             return MyValue(some_value)
 
 
-async def test_basic_transitive_injection(env: ManagedEnv, some_prefix: str, some_value: str, some_value2: str) -> None:
+async def test_basic_transitive_injection(
+    env: ManagedEnv, some_prefix: str, some_value: str, some_value2: str
+) -> None:
     effect: str = ""
 
     @dataclass(frozen=True)
@@ -191,7 +207,9 @@ async def test_basic_transitive_injection(env: ManagedEnv, some_prefix: str, som
     assert my_value.unique_name in my_transitive_value.depends_on
 
     @env.managed
-    async def store_value(prefix: str, value: str = DI.requires(my_transitive_value)) -> None:
+    async def store_value(
+        prefix: str, value: str = DI.requires(my_transitive_value)
+    ) -> None:
         nonlocal effect
         effect = prefix + value
 
@@ -228,7 +246,9 @@ async def test_provider_with_config(env: ManagedEnv, some_prefix: str) -> None:
 
 
 @with_config_overrides(log_max_length=1717)
-async def test_managed_with_config(env: ManagedEnv, some_prefix: str, some_value: str) -> None:
+async def test_managed_with_config(
+    env: ManagedEnv, some_prefix: str, some_value: str
+) -> None:
     effect: str = ""
 
     @dataclass(frozen=True)
@@ -241,7 +261,9 @@ async def test_managed_with_config(env: ManagedEnv, some_prefix: str, some_value
 
     @env.managed
     async def store_value(
-        prefix: str, v: int = ConfigValue(cfg_schema.log_max_length), value: MyValue = DI.requires(my_value)
+        prefix: str,
+        v: int = ConfigValue(cfg_schema.log_max_length),
+        value: MyValue = DI.requires(my_value),
     ) -> None:
         nonlocal effect
         effect = ":".join((prefix, value.val, str(v)))
@@ -252,7 +274,9 @@ async def test_managed_with_config(env: ManagedEnv, some_prefix: str, some_value
     assert effect == f"{some_prefix}:{some_value}:1717"
 
 
-async def test_basic_provider_with_cleanup(env: ManagedEnv, some_prefix: str, some_value: str) -> None:
+async def test_basic_provider_with_cleanup(
+    env: ManagedEnv, some_prefix: str, some_value: str
+) -> None:
     effect: str = ""
     cleanup_done: bool = False
 
@@ -281,7 +305,9 @@ async def test_basic_provider_with_cleanup(env: ManagedEnv, some_prefix: str, so
 
 
 @with_config_overrides(log_max_length=1717)
-async def test_complex_provider_with_cleanup(env: ManagedEnv, some_prefix: str, some_value: str) -> None:
+async def test_complex_provider_with_cleanup(
+    env: ManagedEnv, some_prefix: str, some_value: str
+) -> None:
     effect: str = ""
     cleanup1_done: bool = False
     cleanup2_done: bool = False
@@ -297,7 +323,9 @@ async def test_complex_provider_with_cleanup(env: ManagedEnv, some_prefix: str, 
         cleanup1_done = True
 
     @env.provides()
-    async def my_transitive_value(value: MyValue = DI.requires(my_value)) -> AsyncIterator[str]:
+    async def my_transitive_value(
+        value: MyValue = DI.requires(my_value),
+    ) -> AsyncIterator[str]:
         yield value.val
         nonlocal cleanup2_done
         cleanup2_done = True
@@ -322,7 +350,9 @@ async def test_complex_provider_with_cleanup(env: ManagedEnv, some_prefix: str, 
     assert effect == f"{some_prefix}:{some_value}:1717"
 
 
-async def test_env_scope_build_failure_factory(env: ManagedEnv, some_value: str) -> None:
+async def test_env_scope_build_failure_factory(
+    env: ManagedEnv, some_value: str
+) -> None:
     @env.provides(name=some_value)
     async def my_value() -> Never:
         raise Exception("Fail on purpose")
@@ -334,7 +364,9 @@ async def test_env_scope_build_failure_factory(env: ManagedEnv, some_value: str)
         assert e.provider_name == some_value
 
 
-async def test_env_scope_build_failure_context(env: ManagedEnv, some_value: str) -> None:
+async def test_env_scope_build_failure_context(
+    env: ManagedEnv, some_value: str
+) -> None:
     @env.provides(name=some_value)
     async def my_value() -> AsyncIterator[Never]:
         raise Exception("Fail on purpose")
@@ -347,7 +379,9 @@ async def test_env_scope_build_failure_context(env: ManagedEnv, some_value: str)
         assert e.provider_name == some_value
 
 
-async def test_env_provider_errors_missing_yield(env: ManagedEnv, some_value: str) -> None:
+async def test_env_provider_errors_missing_yield(
+    env: ManagedEnv, some_value: str
+) -> None:
     @env.provides(name=some_value)
     async def my_value() -> AsyncIterator[str]:
         if 0 > 1:
@@ -357,7 +391,9 @@ async def test_env_provider_errors_missing_yield(env: ManagedEnv, some_value: st
         await env.managed_scope().__aenter__()
 
 
-async def test_env_provider_errors_extra_yield(env: ManagedEnv, some_value: str) -> None:
+async def test_env_provider_errors_extra_yield(
+    env: ManagedEnv, some_value: str
+) -> None:
     @env.provides(name=some_value)
     async def my_value() -> AsyncIterator[str]:
         yield some_value
@@ -375,27 +411,19 @@ async def test_formulation_of_mananged(env: ManagedEnv, some_value: str) -> None
         yield some_value
 
     @env.managed
-    async def async_func(
-        value: str = DI.requires(my_value),
-    ) -> str:
+    async def async_func(value: str = DI.requires(my_value)) -> str:
         return value
 
     @env.managed
-    async def async_gen(
-        value: str = DI.requires(my_value),
-    ) -> AsyncIterator[str]:
+    async def async_gen(value: str = DI.requires(my_value)) -> AsyncIterator[str]:
         yield value
 
     @env.managed
-    def gen(
-        value: str = DI.requires(my_value),
-    ) -> Iterator[str]:
+    def gen(value: str = DI.requires(my_value)) -> Iterator[str]:
         yield value
 
     @env.managed
-    def func(
-        value: str = DI.requires(my_value),
-    ) -> str:
+    def func(value: str = DI.requires(my_value)) -> str:
         return value
 
     async with env.managed_scope():

@@ -3,14 +3,13 @@ from __future__ import annotations
 from types import CodeType
 from typing import Any, Awaitable, Callable, Sequence
 
-from pydantic.fields import Field
-
 from ai2i.dcollection.interface.collection import (
     BaseComputedField,
     DocLoadingError,
     Document,
 )
 from ai2i.dcollection.interface.document import DocumentFieldName
+from pydantic.fields import Field
 
 
 class Typed[T, U]:
@@ -47,7 +46,9 @@ class AssignedField[V](DocComputedField[V]):
 
     @property
     def computation(self) -> Callable:
-        return lambda: (_ for _ in ()).throw(NotImplementedError("AssignedField does not have a computation function"))
+        return lambda: (_ for _ in ()).throw(
+            NotImplementedError("AssignedField does not have a computation function")
+        )
 
     def values_to_docs(self, docs: Sequence[Document]) -> None:
         for doc in docs:
@@ -93,7 +94,9 @@ class BatchComputedField[V](DocComputedField[V]):
     ) -> Callable[[Sequence[Document]], Awaitable[Sequence[V | DocLoadingError]]]:
         return self.computation_func
 
-    computation_func: Callable[[Sequence[Document]], Awaitable[Sequence[V | DocLoadingError]]] = Field(exclude=True)
+    computation_func: Callable[
+        [Sequence[Document]], Awaitable[Sequence[V | DocLoadingError]]
+    ] = Field(exclude=True)
 
 
 class AggTransformComputedField[V](BatchComputedField[V]):

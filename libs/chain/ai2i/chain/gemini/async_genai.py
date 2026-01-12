@@ -10,7 +10,10 @@ from google.genai.types import (
     GenerateContentResponse,
     PartDict,
 )
-from langchain_core.callbacks import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
+from langchain_core.callbacks import (
+    AsyncCallbackManagerForLLMRun,
+    CallbackManagerForLLMRun,
+)
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.messages.ai import UsageMetadata
@@ -44,24 +47,28 @@ class AsyncChatGoogleGenAI(BaseChatModel):
         run_manager: AsyncCallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
-        message, llm_output = await self._agenerate_message(messages, stop=stop, **kwargs)
+        message, llm_output = await self._agenerate_message(
+            messages, stop=stop, **kwargs
+        )
         return ChatResult(
-            generations=[ChatGeneration(message=message)],
-            llm_output=llm_output,
+            generations=[ChatGeneration(message=message)], llm_output=llm_output
         )
 
     async def _agenerate_message(
-        self, messages: Sequence[BaseMessage], stop: list[str] | None = None, **kwargs: Any
+        self,
+        messages: Sequence[BaseMessage],
+        stop: list[str] | None = None,
+        **kwargs: Any,
     ) -> tuple[AIMessage, dict[str, Any]]:
         contents, system_instruction = self._format_messages(messages)
         client_config: GenerateContentConfig = self._process_model_kwargs(kwargs, stop)
         client_config.system_instruction = system_instruction
         response = await self.client.aio.models.generate_content(
-            model=self.model_name,
-            contents=contents,
-            config=client_config,
+            model=self.model_name, contents=contents, config=client_config
         )
-        response_text, usage_metadata, llm_output = self._extract_response_data(response)
+        response_text, usage_metadata, llm_output = self._extract_response_data(
+            response
+        )
 
         ai_message = AIMessage(content=response_text)
 
@@ -70,11 +77,17 @@ class AsyncChatGoogleGenAI(BaseChatModel):
 
         return ai_message, llm_output
 
-    def _process_model_kwargs(self, kwargs: dict[str, Any], stop: list[str] | None = None) -> GenerateContentConfig:
+    def _process_model_kwargs(
+        self, kwargs: dict[str, Any], stop: list[str] | None = None
+    ) -> GenerateContentConfig:
         merged_config = {**self.model_kwargs, **kwargs, **{"stop_sequences": stop}}
         generation_config_args = merged_config.pop("generation_config", {})
         return GenerateContentConfig.model_validate(
-            {**merged_config, **generation_config_args, "automatic_function_calling": {"disable": True}},
+            {
+                **merged_config,
+                **generation_config_args,
+                "automatic_function_calling": {"disable": True},
+            }
         )
 
     def _format_messages(
@@ -104,7 +117,9 @@ class AsyncChatGoogleGenAI(BaseChatModel):
             contents = []
             for message in chat_messages:
                 role = self._determine_role(message)
-                contents.append({"role": role, "parts": [PartDict(text=message.text())]})
+                contents.append(
+                    {"role": role, "parts": [PartDict(text=message.text())]}
+                )
         return contents, system_instruction
 
     def _determine_role(self, message: BaseMessage) -> str:
@@ -115,9 +130,13 @@ class AsyncChatGoogleGenAI(BaseChatModel):
         else:
             return "user"
 
-    def _extract_response_data(self, response: Any) -> tuple[str, dict[str, Any] | None, dict[str, Any]]:
+    def _extract_response_data(
+        self, response: Any
+    ) -> tuple[str, dict[str, Any] | None, dict[str, Any]]:
         if not isinstance(response, GenerateContentResponse):
-            raise ValueError("Unexpected response format, streaming currently not supported")
+            raise ValueError(
+                "Unexpected response format, streaming currently not supported"
+            )
 
         llm_output = self._extract_llm_metadata(response)
         usage_metadata = self._extract_usage_metadata(response)
@@ -125,7 +144,9 @@ class AsyncChatGoogleGenAI(BaseChatModel):
 
         return text, usage_metadata, llm_output
 
-    def _extract_llm_metadata(self, response: GenerateContentResponse) -> dict[str, Any]:
+    def _extract_llm_metadata(
+        self, response: GenerateContentResponse
+    ) -> dict[str, Any]:
         llm_output = {}
 
         llm_output["model_version"] = response.model_version
@@ -140,7 +161,9 @@ class AsyncChatGoogleGenAI(BaseChatModel):
 
         return llm_output
 
-    def _extract_usage_metadata(self, response: GenerateContentResponse) -> dict[str, Any] | None:
+    def _extract_usage_metadata(
+        self, response: GenerateContentResponse
+    ) -> dict[str, Any] | None:
         if not response.usage_metadata:
             return None
 
@@ -165,7 +188,9 @@ class AsyncChatGoogleGenAI(BaseChatModel):
 
         return usage_metadata
 
-    def _extract_text_from_response(self, response: GenerateContentResponse, llm_output: dict) -> str:
+    def _extract_text_from_response(
+        self, response: GenerateContentResponse, llm_output: dict
+    ) -> str:
         candidates = response.candidates or []
         if not candidates:
             llm_output["error"] = "No candidates returned"
@@ -196,7 +221,9 @@ class AsyncChatGoogleGenAI(BaseChatModel):
         run_manager: CallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> str:
-        raise NotImplementedError("Synchronous calls are not supported. Use _acall instead.")
+        raise NotImplementedError(
+            "Synchronous calls are not supported. Use _acall instead."
+        )
 
     def _generate(
         self,
@@ -205,4 +232,6 @@ class AsyncChatGoogleGenAI(BaseChatModel):
         run_manager: CallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
-        raise NotImplementedError("Synchronous generation is not supported. Use _agenerate instead.")
+        raise NotImplementedError(
+            "Synchronous generation is not supported. Use _agenerate instead."
+        )

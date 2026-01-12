@@ -2,17 +2,10 @@ from __future__ import annotations
 
 from typing import Sequence, final
 
-from ai2i.di.interface.models import (
-    ProvidesDecorator,
-    Scope,
-)
+from ai2i.di.interface.models import ProvidesDecorator, Scope
 from ai2i.di.interface.modules import Module
-from ai2i.di.interface.scopes import (
-    ProvidersPerScope,
-)
-from ai2i.di.scopes import (
-    ProvidersPerScopeImpl,
-)
+from ai2i.di.interface.scopes import ProvidersPerScope
+from ai2i.di.scopes import ProvidersPerScopeImpl
 
 
 @final

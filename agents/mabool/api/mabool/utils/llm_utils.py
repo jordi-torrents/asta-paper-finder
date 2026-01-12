@@ -1,8 +1,7 @@
 from ai2i.chain import LLMModel
 from ai2i.config import config_value
-from pydantic import SecretStr
-
 from mabool.data_model.config import cfg_schema
+from pydantic import SecretStr
 
 
 def get_api_key_for_model(model: LLMModel) -> SecretStr | None:

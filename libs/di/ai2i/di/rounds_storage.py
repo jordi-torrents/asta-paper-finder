@@ -27,21 +27,29 @@ class RoundsStorageImpl(RoundsStorage):
     def __init__(self) -> None:
         self._rounds_cache = {}
 
-    async def push(self, round_id: RoundId, env: ManagedEnv, cleanup: CleanUpFunc | None) -> None:
+    async def push(
+        self, round_id: RoundId, env: ManagedEnv, cleanup: CleanUpFunc | None
+    ) -> None:
         if round_id in self._rounds_cache:
-            raise RoundStorageError(f"Can't add entry for {round_id=}, round already exists in storage")
+            raise RoundStorageError(
+                f"Can't add entry for {round_id=}, round already exists in storage"
+            )
 
         async def _timeout_destroy(timeout_seconds: int) -> None:
             await asyncio.sleep(timeout_seconds)
             await self.destroy(round_id)
 
-        timeout = config_value(cfg_schema.di.round_scope_timeout, default=TWO_HOURS_IN_SECONDS)
+        timeout = config_value(
+            cfg_schema.di.round_scope_timeout, default=TWO_HOURS_IN_SECONDS
+        )
         task = asyncio.create_task(_timeout_destroy(timeout))
         self._rounds_cache[round_id] = StorageEntry(env, cleanup, task)
 
     async def pop(self, round_id: RoundId) -> tuple[ManagedEnv, CleanUpFunc | None]:
         if round_id not in self._rounds_cache:
-            raise RoundStorageError(f"Can't get round, entry for {round_id=} not found in storage ")
+            raise RoundStorageError(
+                f"Can't get round, entry for {round_id=} not found in storage "
+            )
         entry = self._rounds_cache[round_id]
         del self._rounds_cache[round_id]
         entry.timeout_task.cancel()
@@ -49,7 +57,9 @@ class RoundsStorageImpl(RoundsStorage):
 
     async def destroy(self, round_id: RoundId) -> None:
         if round_id not in self._rounds_cache:
-            raise RoundStorageError(f"Can't destroy round, entry for {round_id=} not found in storage ")
+            raise RoundStorageError(
+                f"Can't destroy round, entry for {round_id=} not found in storage "
+            )
 
         entry = self._rounds_cache[round_id]
         del self._rounds_cache[round_id]

@@ -2,14 +2,7 @@ import inspect
 from contextlib import asynccontextmanager, suppress
 from functools import partial
 from itertools import chain, zip_longest
-from typing import (
-    Any,
-    AsyncContextManager,
-    AsyncIterator,
-    Callable,
-    Iterator,
-    Sequence,
-)
+from typing import Any, AsyncContextManager, AsyncIterator, Callable, Iterator, Sequence
 
 from ai2i.di.interface.errors import (
     DependencyDefinitionError,
@@ -65,7 +58,9 @@ class Providers:
     def __init__(self, factories: NamedDependenciesDict | None = None) -> None:
         self.factories = {} if factories is None else factories
 
-    async def build_from_name(self, name: DependencyName, resolver: DependencyResolver) -> tuple[Any, CleanUpFunc]:
+    async def build_from_name(
+        self, name: DependencyName, resolver: DependencyResolver
+    ) -> tuple[Any, CleanUpFunc]:
         d = self.factories[name]
         ctx_mgr = d.create_context_manager(resolver)
 
@@ -80,7 +75,9 @@ class Providers:
         return a, partial(clean, ctx_mgr)
 
     def provides(self, *, name: str | None = None) -> ProvidesDecorator:
-        def _internal[A](f: AsyncFunc[..., A] | AsyncContextFunc[..., A]) -> DependencyDefinition[A]:
+        def _internal[A](
+            f: AsyncFunc[..., A] | AsyncContextFunc[..., A],
+        ) -> DependencyDefinition[A]:
             if not inspect.iscoroutinefunction(f) and not inspect.isasyncgenfunction(f):
                 raise DependencyDefinitionError(
                     f"Providers must be 'async' functions or generators, unlike: {f.__qualname__}"
@@ -95,7 +92,10 @@ class Providers:
                 arg_defaults = ()
 
             args_and_defaults = {
-                t[0]: t[1] for t in list(zip_longest(reversed(arg_names), reversed(list(arg_defaults))))
+                t[0]: t[1]
+                for t in list(
+                    zip_longest(reversed(arg_names), reversed(list(arg_defaults)))
+                )
             }
 
             kwargs_defaults = f_spec.kwonlydefaults
@@ -103,7 +103,10 @@ class Providers:
             if kwargs_defaults is None:
                 kwargs_defaults = {}
 
-            kwargs_and_defaults = {**{k: None for k in f_spec.kwonlyargs}, **kwargs_defaults}
+            kwargs_and_defaults = {
+                **{k: None for k in f_spec.kwonlyargs},
+                **kwargs_defaults,
+            }
 
             all_defaults = chain(args_and_defaults.items(), kwargs_and_defaults.items())
 
@@ -111,7 +114,9 @@ class Providers:
             dependent_unique_names: list[DependencyName] = []
             for arg, default in all_defaults:
                 if default is None:
-                    raise DependencyDefinitionError(f"DI Provider '{f.__qualname__}', has a non bound argument '{arg}'")
+                    raise DependencyDefinitionError(
+                        f"DI Provider '{f.__qualname__}', has a non bound argument '{arg}'"
+                    )
 
                 if isinstance(default, DependencyPlaceholder):
                     dependent_unique_names.append(default.definition.unique_name)
@@ -119,9 +124,13 @@ class Providers:
             # the factory itself is managed, since we want the ability to inject dependencies/config into the factory
 
             if inspect.iscoroutinefunction(f):
-                return self.register_async_func(f, name=name, deps=dependent_unique_names)
+                return self.register_async_func(
+                    f, name=name, deps=dependent_unique_names
+                )
             elif inspect.isasyncgenfunction(f):
-                return self.register_async_ctx_manager(f, name=name, deps=dependent_unique_names)
+                return self.register_async_ctx_manager(
+                    f, name=name, deps=dependent_unique_names
+                )
             else:
                 raise UnreachableCodeBlockError()
 
@@ -137,7 +146,9 @@ class Providers:
         dependencies: Sequence[DependencyName] = deps or []
 
         provider_name = name or _get_qualified_name(factory)
-        dep = DependencyDefinition(provider_name, _async_factory_adapter(factory, provider_name), dependencies)
+        dep = DependencyDefinition(
+            provider_name, _async_factory_adapter(factory, provider_name), dependencies
+        )
         self._register_dependency(dep)
         return dep
 
@@ -152,9 +163,7 @@ class Providers:
 
         provider_name = name or _get_qualified_name(factory)
         dep = DependencyDefinition(
-            provider_name,
-            _async_context_adapter(factory, provider_name),
-            dependencies,
+            provider_name, _async_context_adapter(factory, provider_name), dependencies
         )
 
         self._register_dependency(dep)
@@ -162,7 +171,9 @@ class Providers:
 
     def _register_dependency[A](self, definition: DependencyDefinition[A]) -> None:
         if definition.unique_name in self.factories:
-            raise DependencyDefinitionError(f"multiple factories with the name: '{definition.unique_name}' found")
+            raise DependencyDefinitionError(
+                f"multiple factories with the name: '{definition.unique_name}' found"
+            )
 
         self.factories[definition.unique_name] = definition
 
@@ -197,7 +208,8 @@ def _async_context_adapter[A](
             value = await anext(values_iter)  # create value
         except StopAsyncIteration:
             raise ProviderBuildError(
-                "async iterator provider did not yield a value, maybe you're missing a `yield None`?", provider_name
+                "async iterator provider did not yield a value, maybe you're missing a `yield None`?",
+                provider_name,
             )
         except Exception as e:
             raise ProviderBuildError(str(e), provider_name) from e

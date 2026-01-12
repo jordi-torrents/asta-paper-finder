@@ -35,7 +35,10 @@ class SubstitutionInfo(Generic[P, B]):
         if arg_defaults is None:
             arg_defaults = ()
 
-        args_and_defaults = {t[0]: t[1] for t in list(zip(reversed(arg_names), reversed(list(arg_defaults))))}
+        args_and_defaults = {
+            t[0]: t[1]
+            for t in list(zip(reversed(arg_names), reversed(list(arg_defaults))))
+        }
 
         kwarg_names = f_spec.kwonlyargs
         kwargs_and_defaults = f_spec.kwonlydefaults
@@ -43,7 +46,9 @@ class SubstitutionInfo(Generic[P, B]):
         if kwargs_and_defaults is None:
             kwargs_and_defaults = {}
 
-        return SubstitutionInfo(arg_names, args_and_defaults, kwarg_names, kwargs_and_defaults)
+        return SubstitutionInfo(
+            arg_names, args_and_defaults, kwarg_names, kwargs_and_defaults
+        )
 
     def resolve(
         self, substitutions: Sequence[Substitution], *args: P.args, **kwargs: P.kwargs

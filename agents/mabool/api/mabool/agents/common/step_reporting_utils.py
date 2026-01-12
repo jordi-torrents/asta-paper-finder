@@ -12,7 +12,9 @@ def verbalize_list(items: list[str], connector: Literal["and", "or"]) -> str:
 def markdown_list(items: list[str], level: int = 1, numbered: bool = False) -> str:
     indent = (level - 1) * 4
     if numbered:
-        return "\n".join([f"{'' * indent}{n}. {item}" for n, item in enumerate(items, 1)])
+        return "\n".join(
+            [f"{'' * indent}{n}. {item}" for n, item in enumerate(items, 1)]
+        )
     else:
         return "\n".join([f"{'' * indent}- {item}" for item in items])
 

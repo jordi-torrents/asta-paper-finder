@@ -1,30 +1,21 @@
-from .collection import (  # noqa: F401
-    PaperFinderDocumentCollection,
-    keyed_by_corpus_id,
-)
-from .computed_field import (  # noqa: F401
-    AggTransformComputedField,
-    AssignedField,
-    BatchComputedField,
-    ComputedField,
-    Typed,
-)
+from .collection import PaperFinderDocumentCollection  # noqa: F401
+from .collection import keyed_by_corpus_id
+from .computed_field import AggTransformComputedField  # noqa: F401
+from .computed_field import AssignedField, BatchComputedField, ComputedField, Typed
 from .document import PaperFinderDocument  # noqa: F401
 from .external_api.s2.author import s2_get_authors_by_name  # noqa: F401
 from .factory import DocumentCollectionFactory  # noqa: F401
-from .fetchers.dense import (  # noqa: F401
-    DenseDataset,
-    fetch_from_vespa_dense_retrieval,
-)
-from .fetchers.s2 import (  # noqa: F401
-    get_by_title_origin_query,
+from .fetchers.dense import DenseDataset  # noqa: F401
+from .fetchers.dense import fetch_from_vespa_dense_retrieval
+from .fetchers.s2 import get_by_title_origin_query  # noqa: F401
+from .fetchers.s2 import (
     s2_by_author,
     s2_fetch_citing_papers,
     s2_paper_search,
     s2_papers_by_title,
 )
-from .interface.collection import (  # noqa: F401  # noqa: F401
-    BASIC_FIELDS,
+from .interface.collection import BASIC_FIELDS  # noqa: F401  # noqa: F401
+from .interface.collection import (
     UI_REQUIRED_FIELDS,
     BaseComputedField,
     BaseDocumentCollectionFactory,

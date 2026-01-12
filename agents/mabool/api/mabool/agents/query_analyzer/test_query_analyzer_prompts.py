@@ -1,7 +1,9 @@
 import pytest
+from mabool.agents.query_analyzer.query_analyzer_prompts import (
+    IdentifyRelevanceCriteriaOutput,
+    RelevanceCriterion,
+)
 from pydantic import ValidationError
-
-from mabool.agents.query_analyzer.query_analyzer_prompts import IdentifyRelevanceCriteriaOutput, RelevanceCriterion
 
 
 def test_identify_relevance_criteria_output_valid() -> None:
@@ -30,7 +32,8 @@ def test_identify_relevance_criteria_output_duplicate_criterion_names() -> None:
 
     with pytest.raises(ValidationError):
         IdentifyRelevanceCriteriaOutput(
-            required_relevance_critieria=criteria[:1], nice_to_have_relevance_criteria=criteria[1:]
+            required_relevance_critieria=criteria[:1],
+            nice_to_have_relevance_criteria=criteria[1:],
         )
 
 
@@ -61,7 +64,8 @@ def test_identify_relevance_criteria_output_with_nice_to_have_criteria() -> None
         RelevanceCriterion(name="criterion4", description="desc4", weight=0.7),
     ]
     output = IdentifyRelevanceCriteriaOutput(
-        required_relevance_critieria=required_criteria, nice_to_have_relevance_criteria=nice_to_have_criteria
+        required_relevance_critieria=required_criteria,
+        nice_to_have_relevance_criteria=nice_to_have_criteria,
     )
     assert output.required_relevance_critieria == required_criteria
     assert output.nice_to_have_relevance_criteria == nice_to_have_criteria

@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
-
 from ai2i.config import application_config_ctx, load_conf
 
 

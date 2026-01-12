@@ -3,14 +3,13 @@ import uuid
 from typing import cast
 
 import pytest
+from ai2i.chain.builders import define_model
+from ai2i.chain.computation import ChainComputation, ModelRunnableFactory
+from ai2i.chain.tests.mocks import MockModelRunnable
 from langchain_core.messages.base import BaseMessage
 from langchain_core.prompt_values import PromptValue, StringPromptValue
 from langchain_core.runnables import RunnableBinding, RunnableLambda
 from pydantic.main import BaseModel
-
-from ai2i.chain.builders import define_model
-from ai2i.chain.computation import ChainComputation, ModelRunnableFactory
-from ai2i.chain.tests.mocks import MockModelRunnable
 
 
 class MockResponse(BaseModel):
@@ -65,9 +64,15 @@ async def test_lift_and_basic_sequencing(random_string: str, random_int: int) ->
     model_mock.return_value = str(random_int)
     model_factory: ModelRunnableFactory = lambda: model_mock
 
-    comp = define_model() | ChainComputation.lift(_to_int) | ChainComputation.lift(RunnableLambda(_plus_one))
+    comp = (
+        define_model()
+        | ChainComputation.lift(_to_int)
+        | ChainComputation.lift(RunnableLambda(_plus_one))
+    )
 
-    r = await comp.build_runnable(model_factory).ainvoke(StringPromptValue(text=random_string))
+    r = await comp.build_runnable(model_factory).ainvoke(
+        StringPromptValue(text=random_string)
+    )
     assert r == random_int + 1
 
 
@@ -78,7 +83,9 @@ async def test_map(random_string: str, random_int: int) -> None:
 
     comp = define_model().map(_to_int).map(_plus_one)
 
-    r = await comp.build_runnable(model_factory).ainvoke(StringPromptValue(text=random_string))
+    r = await comp.build_runnable(model_factory).ainvoke(
+        StringPromptValue(text=random_string)
+    )
     assert r == random_int + 1
 
 
@@ -133,7 +140,9 @@ async def test_passthrough_input(random_string: str, random_int: int) -> None:
     assert r == (random_string, random_int)
 
 
-async def test_passthrough_as_first(random_string: str, random_int: int, random_float: float) -> None:
+async def test_passthrough_as_first(
+    random_string: str, random_int: int, random_float: float
+) -> None:
     model_mock = MockModelRunnable()
     model_mock.return_value = str(random_int)
     model_factory: ModelRunnableFactory = lambda: model_mock
@@ -146,7 +155,9 @@ async def test_passthrough_as_first(random_string: str, random_int: int, random_
     assert r == (random_float, random_int)
 
 
-async def test_passthrough_as_second(random_string: str, random_int: int, random_float: float) -> None:
+async def test_passthrough_as_second(
+    random_string: str, random_int: int, random_float: float
+) -> None:
     model_mock = MockModelRunnable()
     model_mock.return_value = str(random_int)
     model_factory: ModelRunnableFactory = lambda: model_mock
@@ -164,9 +175,9 @@ async def test_pipe_to(random_string: str, random_int: int) -> None:
     model_mock.return_value = str(random_int)
     model_factory: ModelRunnableFactory = lambda: model_mock
 
-    comp = define_model().contra_map(_to_prompt_value).pipe_to(ChainComputation.lift(_to_int)) | ChainComputation.lift(
-        _plus_two
-    )
+    comp = define_model().contra_map(_to_prompt_value).pipe_to(
+        ChainComputation.lift(_to_int)
+    ) | ChainComputation.lift(_plus_two)
     r = await comp.build_runnable(model_factory).ainvoke(random_string)
     assert model_mock.last_input is not None
     assert isinstance(model_mock.last_input, StringPromptValue)
@@ -180,15 +191,19 @@ async def test_in_parallel_with(random_string: str, random_int: int) -> None:
         model_mock.return_value = str(random_int)
         return model_mock
 
-    comp1 = define_model().contra_map(_to_prompt_value).pipe_to(ChainComputation.lift(_to_int)) | ChainComputation.lift(
-        _plus_one
-    )
+    comp1 = define_model().contra_map(_to_prompt_value).pipe_to(
+        ChainComputation.lift(_to_int)
+    ) | ChainComputation.lift(_plus_one)
 
-    comp2 = define_model().contra_map(_to_prompt_value).pipe_to(ChainComputation.lift(_to_int)) | ChainComputation.lift(
-        _plus_two
-    )
+    comp2 = define_model().contra_map(_to_prompt_value).pipe_to(
+        ChainComputation.lift(_to_int)
+    ) | ChainComputation.lift(_plus_two)
 
-    r = await comp1.in_parllel_with(comp2).build_runnable(model_factory).ainvoke((random_string, random_string))
+    r = (
+        await comp1.in_parllel_with(comp2)
+        .build_runnable(model_factory)
+        .ainvoke((random_string, random_string))
+    )
     assert r == (random_int + 1, random_int + 2)
 
 
@@ -198,13 +213,13 @@ async def test_product(random_string: str, random_int: int) -> None:
         model_mock.return_value = str(random_int)
         return model_mock
 
-    comp1 = define_model().contra_map(_to_prompt_value).pipe_to(ChainComputation.lift(_to_int)) | ChainComputation.lift(
-        _plus_one
-    )
+    comp1 = define_model().contra_map(_to_prompt_value).pipe_to(
+        ChainComputation.lift(_to_int)
+    ) | ChainComputation.lift(_plus_one)
 
-    comp2 = define_model().contra_map(_to_prompt_value).pipe_to(ChainComputation.lift(_to_int)) | ChainComputation.lift(
-        _plus_two
-    )
+    comp2 = define_model().contra_map(_to_prompt_value).pipe_to(
+        ChainComputation.lift(_to_int)
+    ) | ChainComputation.lift(_plus_two)
 
     r = await comp1.product(comp2).build_runnable(model_factory).ainvoke(random_string)
     assert r == (random_int + 1, random_int + 2)
@@ -219,8 +234,12 @@ async def test_map_n(random_string: str, random_int: int) -> None:
         model_mock.return_value = str(random_int)
         return model_mock
 
-    comp1 = define_model().dimap(_to_prompt_value, _to_int) | ChainComputation.lift(_plus_one)
-    comp2 = define_model().dimap(_to_prompt_value, _to_int) | ChainComputation.lift(_plus_two)
+    comp1 = define_model().dimap(_to_prompt_value, _to_int) | ChainComputation.lift(
+        _plus_one
+    )
+    comp2 = define_model().dimap(_to_prompt_value, _to_int) | ChainComputation.lift(
+        _plus_two
+    )
     comp3 = define_model().dimap(_to_prompt_value, _to_float)
 
     comp = ChainComputation.map_n(lambda x, y, z: (x, y, z), comp1, comp2, comp3)

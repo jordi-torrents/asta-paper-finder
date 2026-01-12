@@ -51,12 +51,12 @@ async def fetch_from_vespa_dense_retrieval(
         authors=authors,
         corpus_ids=corpus_ids,
         fields_of_study=fields_of_study,
-        config={
-            "max_concurrency": vespa_concurrency,
-        },
+        config={"max_concurrency": vespa_concurrency},
         inserted_before=inserted_before,
     )
-    if all([len(dense_results_for_query) == 0 for dense_results_for_query in dense_results]):
+    if all(
+        [len(dense_results_for_query) == 0 for dense_results_for_query in dense_results]
+    ):
         return []
 
     if dataset.variant != context.vespa_client.get_actual_vespa_version():
@@ -71,9 +71,13 @@ async def fetch_from_vespa_dense_retrieval(
     basic_fields_to_load = [f for f in fields if f in BASIC_FIELDS]
     for dense_results_for_query, query in dense_results_with_queries:
         for i, dr in enumerate(dense_results_for_query):
-            doc_id_fields = {k: dr.metadata["metadata"].get(k) for k in basic_fields_to_load}
+            doc_id_fields = {
+                k: dr.metadata["metadata"].get(k) for k in basic_fields_to_load
+            }
             if doc_id_fields["corpus_id"] is None:
-                logger.warning(f"Document fetched from vespa has no corpus_id: {doc_id_fields}")
+                logger.warning(
+                    f"Document fetched from vespa has no corpus_id: {doc_id_fields}"
+                )
                 continue
             snippet: Snippet | None = None
             if "snippets" in fields:
@@ -81,9 +85,17 @@ async def fetch_from_vespa_dense_retrieval(
                     text=dr.page_content,
                     section_title=dr.metadata["metadata"].get("section_title"),
                     section_kind=dr.metadata["metadata"].get("section_kind"),
-                    ref_mentions=[RefMention(**rm) for rm in dr.metadata["metadata"].get("ref_mentions", [])],
-                    sentences=[SentenceOffsets(**sso) for sso in dr.metadata["metadata"].get("sentence_offsets", [])],
-                    char_start_offset=dr.metadata["sentence"]["document_char_offsets"][0],
+                    ref_mentions=[
+                        RefMention(**rm)
+                        for rm in dr.metadata["metadata"].get("ref_mentions", [])
+                    ],
+                    sentences=[
+                        SentenceOffsets(**sso)
+                        for sso in dr.metadata["metadata"].get("sentence_offsets", [])
+                    ],
+                    char_start_offset=dr.metadata["sentence"]["document_char_offsets"][
+                        0
+                    ],
                     char_end_offset=dr.metadata["sentence"]["document_char_offsets"][1],
                     bounding_boxes=dr.metadata["metadata"]["bounding_boxes"],
                     similarity_scores=[

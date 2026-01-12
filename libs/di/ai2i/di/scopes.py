@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager, suppress
-from typing import (
-    Any,
-    AsyncContextManager,
-    AsyncIterator,
-    ChainMap,
-    Sequence,
-    final,
-)
+from typing import Any, AsyncContextManager, AsyncIterator, ChainMap, Sequence, final
 
 from ai2i.di.context import ResolverFromContextVar
 from ai2i.di.interface import builtin_deps
-from ai2i.di.interface.errors import ManagedScopeError, OutOfScopeDependencyError, ProviderBuildError, ScopeAdapterError
+from ai2i.di.interface.errors import (
+    ManagedScopeError,
+    OutOfScopeDependencyError,
+    ProviderBuildError,
+    ScopeAdapterError,
+)
 from ai2i.di.interface.models import (
     CachedValues,
     CleanUpFunc,
@@ -73,7 +71,10 @@ class ScopeContextImpl(ScopeContext):
 @final
 class SimpleScopeImpl(ScopeContextImpl, SimpleScope):
     def __init__(
-        self, scope: ScopeOrCustom, providers: Providers, patched_instances: dict[str, Any] | None = None
+        self,
+        scope: ScopeOrCustom,
+        providers: Providers,
+        patched_instances: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(scope, providers)
 
@@ -82,7 +83,9 @@ class SimpleScopeImpl(ScopeContextImpl, SimpleScope):
         self._patched_instances = patched_instances
 
     @asynccontextmanager
-    async def managed_scope(self, values: CachedValues | None = None) -> AsyncIterator[ManagedEnv]:
+    async def managed_scope(
+        self, values: CachedValues | None = None
+    ) -> AsyncIterator[ManagedEnv]:
         env = await self.open_scope(values)
         try:
             yield env
@@ -91,7 +94,9 @@ class SimpleScopeImpl(ScopeContextImpl, SimpleScope):
 
     async def open_scope(self, values: CachedValues | None = None) -> ManagedEnv:
         if self._env is not None:
-            raise ManagedScopeError(f"Attempted to open a scope that is already active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to open a scope that is already active: '{self._scope}'"
+            )
 
         if values is None:
             values = {}
@@ -109,7 +114,9 @@ class SimpleScopeImpl(ScopeContextImpl, SimpleScope):
 
     async def close_scope(self) -> None:
         if self._env is None:
-            raise ManagedScopeError(f"Attempted to close scope that isn't active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to close scope that isn't active: '{self._scope}'"
+            )
 
         if self._cleanup is not None:
             await self._cleanup()
@@ -145,7 +152,9 @@ class NestingScopeImpl[A](ScopeContextImpl, NestingScope):
 
     async def open_scope(self, id: A) -> None:
         if self._env is not None:
-            raise ManagedScopeError(f"Attempted to open a scope that is already active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to open a scope that is already active: '{self._scope}'"
+            )
 
         scope_id_value = {self._scope_id_def.unique_name: id}
         parent_scope_values: CachedValues
@@ -155,7 +164,10 @@ class NestingScopeImpl[A](ScopeContextImpl, NestingScope):
             env = self._parent_scope.env
             parent_scope_values = {} if env is None else env.cached_values
 
-        env = ManagedEnv(self._providers, {**self._patched_instances, **scope_id_value, **parent_scope_values})
+        env = ManagedEnv(
+            self._providers,
+            {**self._patched_instances, **scope_id_value, **parent_scope_values},
+        )
         mgr = env.managed_scope()
 
         await _aenter_with_error_handling(mgr, self)
@@ -169,13 +181,17 @@ class NestingScopeImpl[A](ScopeContextImpl, NestingScope):
 
     async def continue_scope(self) -> None:
         if self._env is None:
-            raise ManagedScopeError(f"Attempted to continue a scope that isn't active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to continue a scope that isn't active: '{self._scope}'"
+            )
 
         self._active_scopes += 1
 
     async def close_scope(self) -> None:
         if self._env is None:
-            raise ManagedScopeError(f"Attempted to close scope that isn't active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to close scope that isn't active: '{self._scope}'"
+            )
 
         self._active_scopes -= 1
 
@@ -213,7 +229,9 @@ class HibernatingScopeImpl[A](ScopeContextImpl, HibernatingScope):
 
     async def open_scope(self, id: A) -> None:
         if self._env is not None:
-            raise ManagedScopeError(f"Attempted to open a scope that is already active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to open a scope that is already active: '{self._scope}'"
+            )
 
         scope_id_value = {self._scope_id_def.unique_name: id}
         parent_scope_values: CachedValues
@@ -223,7 +241,10 @@ class HibernatingScopeImpl[A](ScopeContextImpl, HibernatingScope):
             env = self._parent_scope.env
             parent_scope_values = {} if env is None else env.cached_values
 
-        env = ManagedEnv(self._providers, {**self._patched_instances, **scope_id_value, **parent_scope_values})
+        env = ManagedEnv(
+            self._providers,
+            {**self._patched_instances, **scope_id_value, **parent_scope_values},
+        )
         mgr = env.managed_scope()
 
         await _aenter_with_error_handling(mgr, self)
@@ -237,7 +258,9 @@ class HibernatingScopeImpl[A](ScopeContextImpl, HibernatingScope):
 
     async def continue_scope(self) -> None:
         if self._env is None:
-            raise ManagedScopeError(f"Attempted to continue a scope that isn't active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to continue a scope that isn't active: '{self._scope}'"
+            )
 
         self._active_scopes += 1
 
@@ -247,7 +270,9 @@ class HibernatingScopeImpl[A](ScopeContextImpl, HibernatingScope):
         instead of closing it (like in other scope implementations s)
         """
         if self._env is None:
-            raise ManagedScopeError(f"Attempted to close scope that isn't active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to close scope that isn't active: '{self._scope}'"
+            )
 
         self._active_scopes -= 1
 
@@ -263,14 +288,18 @@ class HibernatingScopeImpl[A](ScopeContextImpl, HibernatingScope):
         open a new scope from the provided (pre-initialized) env with its clean function
         """
         if self._env is not None:
-            raise ManagedScopeError(f"Attempted to re-open a scope that is already active: '{self._scope}'")
+            raise ManagedScopeError(
+                f"Attempted to re-open a scope that is already active: '{self._scope}'"
+            )
 
         self._env = env
         self._cleanup = cleanup
         self._active_scopes = 1
 
 
-async def _aenter_with_error_handling(mgr: AsyncContextManager[None], scope: ScopeContext) -> None:
+async def _aenter_with_error_handling(
+    mgr: AsyncContextManager[None], scope: ScopeContext
+) -> None:
     try:
         await mgr.__aenter__()
     except ProviderBuildError as e:
@@ -343,13 +372,7 @@ class ApplicationScopesImpl(ApplicationScopes):
 
     @property
     def envs(self) -> Sequence[ScopeContext]:
-        return [
-            self._custom,
-            self._turn,
-            self._request,
-            self._round,
-            self._singleton,
-        ]
+        return [self._custom, self._turn, self._request, self._round, self._singleton]
 
     def resolve[A](self, definition: DependencyDefinition[A]) -> A:
         # in order of lookup
@@ -410,8 +433,12 @@ class ProvidersPerScopeImpl(ProvidersPerScope):
 
     def chain_with(self, other: ProvidersPerScope) -> ProvidersPerScope:
         return ProvidersPerScopeImpl(
-            singleton=Providers(ChainMap(self.singleton.factories, other.singleton.factories)),
-            request=Providers(ChainMap(self.request.factories, other.request.factories)),
+            singleton=Providers(
+                ChainMap(self.singleton.factories, other.singleton.factories)
+            ),
+            request=Providers(
+                ChainMap(self.request.factories, other.request.factories)
+            ),
             round=Providers(ChainMap(self.round.factories, other.round.factories)),
             turn=Providers(ChainMap(self.turn.factories, other.turn.factories)),
         )
@@ -420,21 +447,29 @@ class ProvidersPerScopeImpl(ProvidersPerScope):
         singleton = SimpleScopeImpl("singleton", self.singleton, patched_instances)
         custom = SimpleScopeImpl("custom", Providers(), patched_instances)
         request = NestingScopeImpl(
-            "request", self.request, builtin_deps.request, patched_instances, parent_scope=singleton
+            "request",
+            self.request,
+            builtin_deps.request,
+            patched_instances,
+            parent_scope=singleton,
         )
         round = HibernatingScopeImpl(
-            "round", self.round, builtin_deps.round_id, patched_instances, parent_scope=request
+            "round",
+            self.round,
+            builtin_deps.round_id,
+            patched_instances,
+            parent_scope=request,
         )
 
-        turn = NestingScopeImpl("turn", self.turn, builtin_deps.turn_id, patched_instances, parent_scope=round)
-
-        return ApplicationScopesImpl(
-            singleton,
-            custom,
-            request,
-            turn,
-            round,
+        turn = NestingScopeImpl(
+            "turn",
+            self.turn,
+            builtin_deps.turn_id,
+            patched_instances,
+            parent_scope=round,
         )
+
+        return ApplicationScopesImpl(singleton, custom, request, turn, round)
 
 
 class ScopeAdaptingDynamicProxy[A]:

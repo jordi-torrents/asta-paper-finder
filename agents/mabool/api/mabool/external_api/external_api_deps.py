@@ -1,7 +1,11 @@
 from ai2i.di import DI, create_module
-
 from mabool.data_model.config import cfg_schema
-from mabool.external_api.rerank.cohere import CohereModels, CohereRerankScorer, RerankScorer, get_cohere_client
+from mabool.external_api.rerank.cohere import (
+    CohereModels,
+    CohereRerankScorer,
+    RerankScorer,
+    get_cohere_client,
+)
 
 external_api_module = create_module("ExternalAPI")
 

@@ -3,12 +3,11 @@ from __future__ import annotations
 import sys
 from typing import AsyncIterator, Iterable, Iterator, Mapping, Protocol, Sequence, cast
 
-from mabwiser.mab import MAB, LearningPolicyType
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
-
 from ai2i.dcollection.factory import DocumentCollectionFactory
 from ai2i.dcollection.interface.collection import Document, DocumentCollection
 from ai2i.dcollection.interface.document import DocumentFieldName
+from mabwiser.mab import MAB, LearningPolicyType
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 type Origin = str
 type OriginDocuments = Sequence[tuple[Origin, Document]]
@@ -56,7 +55,11 @@ class AdaptiveLoader(BaseModel, AsyncIterator[OriginDocuments]):
 
     def _initialize_iterators(self) -> None:
         self._origin_to_iterators = {
-            origin: iter(docs.documents) if isinstance(docs, DocumentCollection) else iter(docs)
+            origin: (
+                iter(docs.documents)
+                if isinstance(docs, DocumentCollection)
+                else iter(docs)
+            )
             for origin, docs in self.origin_to_docs.items()
         }
 
@@ -120,7 +123,9 @@ class AdaptiveLoader(BaseModel, AsyncIterator[OriginDocuments]):
         ).documents
 
         loaded_doc_by_id = {doc.corpus_id: doc for doc in loaded_docs}
-        reordered_loaded_docs = [loaded_doc_by_id[original_doc.corpus_id] for original_doc in documents]
+        reordered_loaded_docs = [
+            loaded_doc_by_id[original_doc.corpus_id] for original_doc in documents
+        ]
 
         rewards = [to_reward(doc, self.field) for doc in reordered_loaded_docs]
 

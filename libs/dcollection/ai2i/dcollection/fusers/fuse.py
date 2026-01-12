@@ -3,10 +3,14 @@ from ai2i.dcollection.interface.document import BoundingBox, OriginQuery, Snippe
 
 
 def fuse_origin_query[DFN: str](
-    fuse_to: DynamicallyLoadedEntity[DFN], fuse_from: DynamicallyLoadedEntity[DFN], field: str
+    fuse_to: DynamicallyLoadedEntity[DFN],
+    fuse_from: DynamicallyLoadedEntity[DFN],
+    field: str,
 ) -> None:
     fuse_to_origin_queries = getattr(fuse_to, field) if fuse_to.is_loaded(field) else []
-    fuse_from_origin_queries = getattr(fuse_from, field) if fuse_from.is_loaded(field) else []
+    fuse_from_origin_queries = (
+        getattr(fuse_from, field) if fuse_from.is_loaded(field) else []
+    )
 
     if fuse_to_origin_queries or fuse_from_origin_queries:
         origin_query_map: dict[OriginQuery, OriginQuery] = {}
@@ -26,12 +30,16 @@ def fuse_origin_query[DFN: str](
 
 
 def fuse_snippet[DFN: str](
-    fuse_to: DynamicallyLoadedEntity[DFN], fuse_from: DynamicallyLoadedEntity[DFN], field: str
+    fuse_to: DynamicallyLoadedEntity[DFN],
+    fuse_from: DynamicallyLoadedEntity[DFN],
+    field: str,
 ) -> None:
     fuse_to_snippets = getattr(fuse_to, field) if fuse_to.is_loaded(field) else []
     fuse_from_snippets = getattr(fuse_from, field) if fuse_from.is_loaded(field) else []
     if fuse_to_snippets or fuse_from_snippets:
-        fused_sorted_snippets = sorted(_merge_duplicate_snippets(fuse_to_snippets + fuse_from_snippets))
+        fused_sorted_snippets = sorted(
+            _merge_duplicate_snippets(fuse_to_snippets + fuse_from_snippets)
+        )
         fused_cleaned_snippets = clean_overlaps(fused_sorted_snippets)
         setattr(fuse_to, field, fused_cleaned_snippets)
 
@@ -41,7 +49,10 @@ def _merge_duplicate_snippets(snippets: list[Snippet]) -> list[Snippet]:
     for snippet in snippets:
         if snippet in merged_snippets:
             merged_snippets[snippet].similarity_scores = sorted(
-                set((merged_snippets[snippet].similarity_scores or []) + (snippet.similarity_scores or [])),
+                set(
+                    (merged_snippets[snippet].similarity_scores or [])
+                    + (snippet.similarity_scores or [])
+                ),
                 reverse=True,
             )
         else:
@@ -64,10 +75,16 @@ def clean_overlaps(sorted_snippets: list[Snippet]) -> list[Snippet]:
             bbs: list[BoundingBox] | None = snippet.bounding_boxes
             if snippet.bounding_boxes and next_snippet.bounding_boxes:
                 next_bbs = [bb.model_dump_json() for bb in next_snippet.bounding_boxes]
-                bbs = [bb for bb in snippet.bounding_boxes if bb.model_dump_json() not in next_bbs]
+                bbs = [
+                    bb
+                    for bb in snippet.bounding_boxes
+                    if bb.model_dump_json() not in next_bbs
+                ]
             no_overlapping_snippets.append(
                 Snippet(
-                    text=snippet.text[: next_snippet.char_start_offset - snippet.char_start_offset],
+                    text=snippet.text[
+                        : next_snippet.char_start_offset - snippet.char_start_offset
+                    ],
                     section_title=snippet.section_title,
                     section_kind=snippet.section_kind,
                     ref_mentions=snippet.ref_mentions,

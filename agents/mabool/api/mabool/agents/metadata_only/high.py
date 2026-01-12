@@ -4,7 +4,9 @@ import kneed
 
 
 def highly_cited_threshold(
-    citation_counts: list[int], top_percentile: Optional[float] = None, min_count: Optional[int] = None
+    citation_counts: list[int],
+    top_percentile: Optional[float] = None,
+    min_count: Optional[int] = None,
 ) -> Optional[int]:
     """
     Calculate the threshold for this specific set of citation counts,
@@ -29,7 +31,9 @@ def highly_cited_threshold(
         else:
             return None
     sorted_counts = sorted(citation_counts)
-    kneedle = kneed.KneeLocator(range(len(sorted_counts)), sorted_counts, curve="convex", direction="increasing")
+    kneedle = kneed.KneeLocator(
+        range(len(sorted_counts)), sorted_counts, curve="convex", direction="increasing"
+    )
     # If a knee is found and the threshold is above the minimum, return it
     if kneedle.knee:
         threshold = sorted_counts[kneedle.knee]

@@ -10,12 +10,12 @@ correlation_id_context: ContextVar[str] = ContextVar("correlation_id", default="
 
 
 def initialize_logging(
-    app: FastAPI,
-    max_length: int,
-    log_format: str,
+    app: FastAPI, max_length: int, log_format: str
 ) -> logging.Logger:
     @app.middleware("http")
-    async def set_correlation_id(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+    async def set_correlation_id(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         correlation_id = str(json_logging.CORRELATION_ID_GENERATOR())
         correlation_id_context.set(correlation_id)
         request.state.correlation_id = correlation_id
@@ -32,8 +32,12 @@ def initialize_logging(
                 record.msg = original_message[:max_length] + "..."
             return super().format(record)
 
-        def _format_log_object(self, record: logging.LogRecord, request_util: json_logging.RequestAdapter) -> Any:
-            json_log_object = super(CloudRunJSONLog, self)._format_log_object(record, request_util)
+        def _format_log_object(
+            self, record: logging.LogRecord, request_util: json_logging.RequestAdapter
+        ) -> Any:
+            json_log_object = super(CloudRunJSONLog, self)._format_log_object(
+                record, request_util
+            )
             # Replace the name of key 'level' to 'severity' to match google cloud logging.
             json_log_object["severity"] = json_log_object.pop("level")
             json_log_object["correlation_id"] = correlation_id_context.get()

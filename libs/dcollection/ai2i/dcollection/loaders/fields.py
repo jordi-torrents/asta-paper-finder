@@ -18,7 +18,9 @@ async def load_markdown(
     for doc in entities:
         markdown = f"# Title: {doc.title}\n"
         if doc.authors:
-            markdown += f"## Authors: {', '.join([author.name for author in doc.authors[:3]])}"
+            markdown += (
+                f"## Authors: {', '.join([author.name for author in doc.authors[:3]])}"
+            )
             if len(doc.authors) > 3:
                 markdown += " et al."
             markdown += "\n"

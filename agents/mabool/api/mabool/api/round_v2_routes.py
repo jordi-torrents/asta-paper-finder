@@ -12,7 +12,6 @@ from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 from langchain_core.tracers.context import register_configure_hook
-
 from mabool.agents.paper_finder.definitions import PaperFinderInput
 from mabool.agents.paper_finder.paper_finder_agent import run_agent
 from mabool.api.route_utils import create_json_response
@@ -32,7 +31,9 @@ router = APIRouter(tags=["rounds"], prefix="/api/2/rounds")
 
 @cached(cache=FileBasedCache, serializer=JsonSerializer())
 async def run_round_with_cache(
-    paper_description: str, anchor_corpus_ids: list[str], operation_mode: AgentOperationMode
+    paper_description: str,
+    anchor_corpus_ids: list[str],
+    operation_mode: AgentOperationMode,
 ) -> dict:
     conversation_thread_id = generate_conversation_thread_id()
 
@@ -58,7 +59,9 @@ async def run_round_with_cache(
             result_set_to_return["session_id"] = conversation_thread_id
             return result_set_to_return
         case _:
-            raise HTTPException(status_code=500, detail="Unexpected response type from agent")
+            raise HTTPException(
+                status_code=500, detail="Unexpected response type from agent"
+            )
 
 
 @router.post("")
@@ -121,13 +124,17 @@ class MaboolCallbackHandler(AsyncCallbackHandler):
                 }
             self.tokens_by_model[model_name]["total"] += usage_metadata["total_tokens"]
             self.tokens_by_model[model_name]["prompt"] += usage_metadata["input_tokens"]
-            self.tokens_by_model[model_name]["completion"] += usage_metadata["output_tokens"]
-            self.tokens_by_model[model_name]["reasoning"] += usage_metadata.get("output_token_details", {}).get(
-                "reasoning", 0
-            )
+            self.tokens_by_model[model_name]["completion"] += usage_metadata[
+                "output_tokens"
+            ]
+            self.tokens_by_model[model_name]["reasoning"] += usage_metadata.get(
+                "output_token_details", {}
+            ).get("reasoning", 0)
 
 
-mabool_callback_var: ContextVar[MaboolCallbackHandler | None] = ContextVar("mabool_callback", default=None)
+mabool_callback_var: ContextVar[MaboolCallbackHandler | None] = ContextVar(
+    "mabool_callback", default=None
+)
 register_configure_hook(mabool_callback_var, True)
 
 

@@ -20,7 +20,9 @@ class ValueNotSet:
 
     def __init__(self, secret: str) -> None:
         if _secret != secret:
-            raise AssertionError("Can not create such instance, use the singleton ValueNotSet.instance()")
+            raise AssertionError(
+                "Can not create such instance, use the singleton ValueNotSet.instance()"
+            )
 
     def __repr__(self) -> str:
         return "ValueNotSet"

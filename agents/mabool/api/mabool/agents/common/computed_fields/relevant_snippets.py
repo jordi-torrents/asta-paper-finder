@@ -9,7 +9,9 @@ from ai2i.dcollection import CitationContext, Document, Snippet
 logger = logging.getLogger(__name__)
 
 
-def find_relevant_snippet(doc: Document, relevant_snippet: str | None) -> list[Snippet | CitationContext] | None:
+def find_relevant_snippet(
+    doc: Document, relevant_snippet: str | None
+) -> list[Snippet | CitationContext] | None:
     if not relevant_snippet:
         return None
     try:
@@ -19,16 +21,26 @@ def find_relevant_snippet(doc: Document, relevant_snippet: str | None) -> list[S
         return [Snippet(text=relevant_snippet)]
 
 
-def _find_relevant_snippet_in_doc(doc: Document, relevant_snippet: str) -> list[Snippet | CitationContext] | None:
-    relevant_snippet_parts = [_render_relevant_snippet_text(part) for part in relevant_snippet.split(" ... ")]
-    part_matches_aggregate: list[list[Snippet | CitationContext]] = [[] for _ in relevant_snippet_parts]
+def _find_relevant_snippet_in_doc(
+    doc: Document, relevant_snippet: str
+) -> list[Snippet | CitationContext] | None:
+    relevant_snippet_parts = [
+        _render_relevant_snippet_text(part) for part in relevant_snippet.split(" ... ")
+    ]
+    part_matches_aggregate: list[list[Snippet | CitationContext]] = [
+        [] for _ in relevant_snippet_parts
+    ]
 
     part_matches_aggregate = _accumulate_snippet_matches(
         part_matches_aggregate,
         doc.title,
         relevant_snippet_parts,
         lambda p, s, e: Snippet(
-            text=p, section_kind="title", section_title="title", char_start_offset=s, char_end_offset=e
+            text=p,
+            section_kind="title",
+            section_title="title",
+            char_start_offset=s,
+            char_end_offset=e,
         ),
     )
 
@@ -37,7 +49,11 @@ def _find_relevant_snippet_in_doc(doc: Document, relevant_snippet: str) -> list[
         doc.abstract,
         relevant_snippet_parts,
         lambda p, s, e: Snippet(
-            text=p, section_kind="abstract", section_title="abstract", char_start_offset=s, char_end_offset=e
+            text=p,
+            section_kind="abstract",
+            section_title="abstract",
+            char_start_offset=s,
+            char_end_offset=e,
         ),
     )
 
@@ -46,15 +62,18 @@ def _find_relevant_snippet_in_doc(doc: Document, relevant_snippet: str) -> list[
             part_matches_aggregate,
             snippet.text,
             relevant_snippet_parts,
-            lambda p, s, e: Snippet(
-                text=p,
-                section_kind=snippet.section_kind,
-                section_title=snippet.section_title,
-                char_start_offset=(snippet.char_start_offset or 0) + s,
-                char_end_offset=(snippet.char_start_offset or 0) + e,
-            )
-            if isinstance(snippet, Snippet) and snippet.char_start_offset is not None
-            else Snippet(text=p),
+            lambda p, s, e: (
+                Snippet(
+                    text=p,
+                    section_kind=snippet.section_kind,
+                    section_title=snippet.section_title,
+                    char_start_offset=(snippet.char_start_offset or 0) + s,
+                    char_end_offset=(snippet.char_start_offset or 0) + e,
+                )
+                if isinstance(snippet, Snippet)
+                and snippet.char_start_offset is not None
+                else Snippet(text=p)
+            ),
         )
 
     for context in doc.citation_contexts or []:
@@ -62,7 +81,9 @@ def _find_relevant_snippet_in_doc(doc: Document, relevant_snippet: str) -> list[
             part_matches_aggregate,
             context.text,
             relevant_snippet_parts,
-            lambda p, s, e: CitationContext(text=p, source_corpus_id=context.source_corpus_id),
+            lambda p, s, e: CitationContext(
+                text=p, source_corpus_id=context.source_corpus_id
+            ),
         )
 
     best_spans = _choose_min_combined_span(part_matches_aggregate)
@@ -97,13 +118,17 @@ def _accumulate_snippet_matches(
         return part_matches_aggregate
     part_matches = _find_snippet_parts(text, relevant_snippet_parts)
     aggregated = []
-    for existing_parts, (snippet_part, spans) in zip(part_matches_aggregate, zip(relevant_snippet_parts, part_matches)):
+    for existing_parts, (snippet_part, spans) in zip(
+        part_matches_aggregate, zip(relevant_snippet_parts, part_matches)
+    ):
         new_parts = [factory(snippet_part, start, end) for start, end in spans]
         aggregated.append(existing_parts + new_parts)
     return aggregated
 
 
-def _find_snippet_parts(text: str, relevant_snippet_parts: list[str]) -> list[list[tuple[int, int]]]:
+def _find_snippet_parts(
+    text: str, relevant_snippet_parts: list[str]
+) -> list[list[tuple[int, int]]]:
     return [_fuzzy_find_snippet_text(text, part) for part in relevant_snippet_parts]
 
 
@@ -111,7 +136,11 @@ def _fuzzy_find_snippet_text(text: str, snippet_to_find: str) -> list[tuple[int,
     try:
 
         def remove_unicode_diacritics(s: str) -> str:
-            return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+            return "".join(
+                c
+                for c in unicodedata.normalize("NFD", s)
+                if unicodedata.category(c) != "Mn"
+            )
 
         if not text or not snippet_to_find:
             return []
@@ -128,7 +157,11 @@ def _fuzzy_find_snippet_text(text: str, snippet_to_find: str) -> list[tuple[int,
                 normalized_chars.append(ch.lower())
                 index_map.append(i)
 
-        snippet_cleaned = "".join(ch.lower() for ch in remove_unicode_diacritics(snippet_to_find) if ch.isalnum())
+        snippet_cleaned = "".join(
+            ch.lower()
+            for ch in remove_unicode_diacritics(snippet_to_find)
+            if ch.isalnum()
+        )
         normalized_text = "".join(normalized_chars)
 
         # Find all occurrences of snippet_cleaned in normalized_text
@@ -144,7 +177,9 @@ def _fuzzy_find_snippet_text(text: str, snippet_to_find: str) -> list[tuple[int,
             search_start = found_at + 1
         return matches
     except Exception as e:
-        logger.exception(f"Failed to find relevant snippet (text: {text}, snippet: {snippet_to_find}): {e}")
+        logger.exception(
+            f"Failed to find relevant snippet (text: {text}, snippet: {snippet_to_find}): {e}"
+        )
         return []
 
 
@@ -165,16 +200,25 @@ def _choose_min_combined_span(
     for s in part_matches_aggregate:
         combo_count *= max(1, len(s))
         if combo_count > 100_000:
-            return [segments[0] if segments else None for segments in part_matches_aggregate]
-    part_matches_aggregate = [s for s in part_matches_aggregate if s]  # remove parts that didn't match
+            return [
+                segments[0] if segments else None for segments in part_matches_aggregate
+            ]
+    part_matches_aggregate = [
+        s for s in part_matches_aggregate if s
+    ]  # remove parts that didn't match
 
     best_combination = None
     best_span_size = math.inf
 
     for combo in itertools.product(*part_matches_aggregate):
         # combo is a tuple of (start, end) pairs, one from each snippet part
-        min_start = min(c.char_start_offset or 0 if isinstance(c, Snippet) else 0 for c in combo)
-        max_end = max(c.char_end_offset or math.inf if isinstance(c, Snippet) else math.inf for c in combo)
+        min_start = min(
+            c.char_start_offset or 0 if isinstance(c, Snippet) else 0 for c in combo
+        )
+        max_end = max(
+            c.char_end_offset or math.inf if isinstance(c, Snippet) else math.inf
+            for c in combo
+        )
         span_size = max_end - min_start
 
         if span_size < best_span_size:

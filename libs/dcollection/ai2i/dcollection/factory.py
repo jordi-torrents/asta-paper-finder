@@ -4,14 +4,18 @@ import logging
 from collections import defaultdict
 from typing import Any, Iterable, Sequence
 
-from semanticscholar import AsyncSemanticScholar
-
 from ai2i.dcollection import PaperFinderDocument
 from ai2i.dcollection.caching.cache import SubsetCache
 from ai2i.dcollection.collection import PaperFinderDocumentCollection
-from ai2i.dcollection.data_access_context import DocumentCollectionContext, SubsetCacheInterface
+from ai2i.dcollection.data_access_context import (
+    DocumentCollectionContext,
+    SubsetCacheInterface,
+)
 from ai2i.dcollection.external_api.dense.vespa import VespaRetriever
-from ai2i.dcollection.fetchers.dense import DenseDataset, fetch_from_vespa_dense_retrieval
+from ai2i.dcollection.fetchers.dense import (
+    DenseDataset,
+    fetch_from_vespa_dense_retrieval,
+)
 from ai2i.dcollection.fetchers.s2 import (
     s2_by_author,
     s2_fetch_citing_papers,
@@ -30,6 +34,7 @@ from ai2i.dcollection.interface.document import (
     DocumentFieldName,
     ExtractedYearlyTimeRange,
 )
+from semanticscholar import AsyncSemanticScholar
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +53,11 @@ class DocumentCollectionFactory(BaseDocumentCollectionFactory):
         s2_client = (
             AsyncSemanticScholar(timeout=s2_api_timeout, api_key=s2_api_key)
             if s2_api_key
-            else AsyncSemanticScholar(timeout=s2_api_timeout)  # TODO: do we want to allow / warn in this case?
+            else AsyncSemanticScholar(
+                timeout=s2_api_timeout
+            )  # TODO: do we want to allow / warn in this case?
         )
-        vespa_client = VespaRetriever(
-            s2_client=s2_client,
-            timeout=s2_api_timeout,
-        )
+        vespa_client = VespaRetriever(s2_client=s2_client, timeout=s2_api_timeout)
         cache = SubsetCache(
             ttl=cache_ttl,
             is_enabled=cache_is_enabled,
@@ -77,7 +81,9 @@ class DocumentCollectionFactory(BaseDocumentCollectionFactory):
 
     def from_ids(self, corpus_ids: list[CorpusId]) -> DocumentCollection:
         """Create a document collection from a list of corpus IDs."""
-        return self.from_docs([PaperFinderDocument(corpus_id=corpus_id) for corpus_id in corpus_ids])
+        return self.from_docs(
+            [PaperFinderDocument(corpus_id=corpus_id) for corpus_id in corpus_ids]
+        )
 
     def from_docs(
         self,
@@ -122,7 +128,9 @@ class DocumentCollectionFactory(BaseDocumentCollectionFactory):
         """Create a document collection from S2 by author."""
         context = self._context
         if len(authors_profiles) == 1:
-            documents = await s2_by_author(authors_profiles[0], context, inserted_before)
+            documents = await s2_by_author(
+                authors_profiles[0], context, inserted_before
+            )
         else:
             raise NotImplementedError
 
@@ -226,8 +234,12 @@ class DocumentCollectionFactory(BaseDocumentCollectionFactory):
         collection = self.from_docs(documents=documents)
         try:
             cache = self._context.cache
-            await cache.put(collection.documents, collection.to_field_requirements(S2_FIELDS))
+            await cache.put(
+                collection.documents, collection.to_field_requirements(S2_FIELDS)
+            )
             collection = await collection.with_fields(["markdown"])
         except Exception as e:
-            logging.exception(f"Failed to populate cache for dense retrieval documents (skipping): {e}")
+            logging.exception(
+                f"Failed to populate cache for dense retrieval documents (skipping): {e}"
+            )
         return collection

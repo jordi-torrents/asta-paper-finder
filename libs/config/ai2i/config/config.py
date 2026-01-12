@@ -8,8 +8,6 @@ from contextvars import ContextVar
 from functools import wraps
 from typing import Any, Callable, Iterator, ParamSpec, TypeVar, cast
 
-from deepmerge.merger import Merger
-
 from ai2i.common.utils.value import ValueNotSet
 from ai2i.config.common import Substitution, SubstitutionInfo
 from ai2i.config.config_models import (
@@ -20,18 +18,27 @@ from ai2i.config.config_models import (
     ConfigValuePlaceholder,
     UserFacing,
 )
+from deepmerge.merger import Merger
 
 logger = logging.getLogger(__name__)
 
-dicts_only_merger = Merger([(dict, ["merge"]), (list, ["override"]), (set, ["override"])], ["override"], ["override"])
+dicts_only_merger = Merger(
+    [(dict, ["merge"]), (list, ["override"]), (set, ["override"])],
+    ["override"],
+    ["override"],
+)
 
 
 def is_test() -> bool:
     return "PYTEST_VERSION" in os.environ
 
 
-_app_config_context: ContextVar[ConfigSettings | None] = ContextVar("app_config_context", default=None)
-_user_facing_context: ContextVar[ConfigSettings | None] = ContextVar("user_facing_context", default=None)
+_app_config_context: ContextVar[ConfigSettings | None] = ContextVar(
+    "app_config_context", default=None
+)
+_user_facing_context: ContextVar[ConfigSettings | None] = ContextVar(
+    "user_facing_context", default=None
+)
 
 
 def _get_config() -> ConfigSettings | None:
@@ -71,7 +78,9 @@ R = TypeVar("R")
 WrappedFunc = Callable[P, R]
 
 
-def with_config_overrides(**kwargs: SettingsType) -> Callable[[WrappedFunc], WrappedFunc]:
+def with_config_overrides(
+    **kwargs: SettingsType,
+) -> Callable[[WrappedFunc], WrappedFunc]:
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         if asyncio.iscoroutinefunction(func):
 
@@ -81,7 +90,10 @@ def with_config_overrides(**kwargs: SettingsType) -> Callable[[WrappedFunc], Wra
                 user_facing: UserFacing = _get_user_facing() or ConfigDict.empty()
 
                 with application_config_ctx(
-                    AppConfig(config=current_config.merge_dict(kwargs), user_facing=user_facing)
+                    AppConfig(
+                        config=current_config.merge_dict(kwargs),
+                        user_facing=user_facing,
+                    )
                 ):
                     return await func(*args, **func_kwargs)
 
@@ -94,7 +106,10 @@ def with_config_overrides(**kwargs: SettingsType) -> Callable[[WrappedFunc], Wra
                 user_facing: UserFacing = _get_user_facing() or ConfigDict.empty()
 
                 with application_config_ctx(
-                    AppConfig(config=current_config.merge_dict(kwargs), user_facing=user_facing)
+                    AppConfig(
+                        config=current_config.merge_dict(kwargs),
+                        user_facing=user_facing,
+                    )
                 ):
                     return func(*args, **func_kwargs)
 
@@ -124,7 +139,9 @@ def resolve_config_placeholder(placeholder: ConfigValuePlaceholder[A]) -> A:
     return placeholder.read_from_dict(config_values)
 
 
-_configurable_substitution = [Substitution(ConfigValuePlaceholder, resolve_config_placeholder)]
+_configurable_substitution = [
+    Substitution(ConfigValuePlaceholder, resolve_config_placeholder)
+]
 
 
 def configurable(f: Callable[P, B]) -> Callable[P, B]:
@@ -132,7 +149,9 @@ def configurable(f: Callable[P, B]) -> Callable[P, B]:
 
     @wraps(f)
     def _decorated(*args: P.args, **kwargs: P.kwargs) -> B:
-        resolved_args, resolved_kwargs = f_info.resolve(_configurable_substitution, *args, **kwargs)
+        resolved_args, resolved_kwargs = f_info.resolve(
+            _configurable_substitution, *args, **kwargs
+        )
         return f(*resolved_args, **resolved_kwargs)  # type: ignore
 
     return _decorated

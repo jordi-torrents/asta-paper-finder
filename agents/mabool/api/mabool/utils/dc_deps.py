@@ -1,7 +1,6 @@
 from ai2i.config import ConfigValue, configurable
 from ai2i.dcollection import DocumentCollection, DocumentCollectionFactory
 from ai2i.di import DI, create_module
-
 from mabool.data_model.config import cfg_schema
 
 dc_module = create_module("DocumentCollection")

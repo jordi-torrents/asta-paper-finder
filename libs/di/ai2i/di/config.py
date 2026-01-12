@@ -8,14 +8,18 @@ from ai2i.config.config_models import ConfigValuePlaceholder
 
 @dataclass(frozen=True)
 class Di:
-    round_scope_timeout: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(["di", "round_scope_timeout"])
+    round_scope_timeout: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
+        ["di", "round_scope_timeout"]
+    )
 
 
 @dataclass(frozen=True)
 class AppConfigSchema:
     di: Di = Di()
     domain: ConfigValuePlaceholder[Literal["cs"]] = ConfigValuePlaceholder(["domain"])
-    log_max_length: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(["log_max_length"])
+    log_max_length: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
+        ["log_max_length"]
+    )
 
     def __getattr__(self, name: str) -> ConfigValuePlaceholder[str]:
         return ConfigValuePlaceholder([name])

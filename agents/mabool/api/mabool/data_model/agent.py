@@ -4,10 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, Optional, TypedDict
 
-from ai2i.dcollection import CorpusId, DocumentCollection, ExtractedYearlyTimeRange, RelevanceCriteria
-from pydantic import BaseModel
-
+from ai2i.dcollection import (
+    CorpusId,
+    DocumentCollection,
+    ExtractedYearlyTimeRange,
+    RelevanceCriteria,
+)
 from mabool.data_model.specifications import Specifications
+from pydantic import BaseModel
 
 type AgentOperationMode = Literal["infer", "fast", "diligent"]
 
@@ -117,7 +121,9 @@ class DomainsIdentified(BaseModel):
     key_secondary_fields: list[FieldOfStudy]
 
 
-type RefusalType = Literal["similar to", "web access", "not paper finding", "affiliation", "author ID"]
+type RefusalType = Literal[
+    "similar to", "web access", "not paper finding", "affiliation", "author ID"
+]
 
 
 class PossibleRefusal(BaseModel):
@@ -145,9 +151,11 @@ class PartiallyAnalyzedQuery(BaseModel):
             venues=self.venues,
             time_range=self.time_range,
             extracted_properties=self.extracted_properties,
-            query_type=self.query_type or QueryType(type="UNKNOWN", broad_or_specific="unknown"),
+            query_type=self.query_type
+            or QueryType(type="UNKNOWN", broad_or_specific="unknown"),
             relevance_criteria=self.relevance_criteria,
-            domains=self.domains or DomainsIdentified(main_field="Unknown", key_secondary_fields=[]),
+            domains=self.domains
+            or DomainsIdentified(main_field="Unknown", key_secondary_fields=[]),
             possible_refusal=self.possible_refusal,
             matched_title=self.matched_title,
         )
@@ -188,11 +196,16 @@ class QueryAnalysisFailure(BaseModel):
 
 
 type QueryAnalysisResult = (
-    QueryAnalysisSuccess | QueryAnalysisPartialSuccess | QueryAnalysisRefusal | QueryAnalysisFailure
+    QueryAnalysisSuccess
+    | QueryAnalysisPartialSuccess
+    | QueryAnalysisRefusal
+    | QueryAnalysisFailure
 )
 
 
-def get_analyzed_query(query_analysis_result: QueryAnalysisResult) -> AnalyzedQuery | PartiallyAnalyzedQuery:
+def get_analyzed_query(
+    query_analysis_result: QueryAnalysisResult,
+) -> AnalyzedQuery | PartiallyAnalyzedQuery:
     match query_analysis_result:
         case QueryAnalysisSuccess(analyzed_query=analyzed_query):
             return analyzed_query
@@ -211,7 +224,9 @@ class QueryAnalyzerError(Exception):
 
 class ConflictingOptionsError(QueryAnalyzerError):
     def __init__(self, field: Literal["recent", "central"]) -> None:
-        self.message = f"Query Analyzer failure: flagged both {field}_first and {field}_last"
+        self.message = (
+            f"Query Analyzer failure: flagged both {field}_first and {field}_last"
+        )
         super().__init__(self.message)
 
 
@@ -233,7 +248,9 @@ class AgentInput(BaseModel):
     doc_collection: DocumentCollection
 
 
-_ErrorTypeLiteral = Literal["query_refusal", "no_actionable_data_query", "heavy_load", "unable_to_do", "other"]
+_ErrorTypeLiteral = Literal[
+    "query_refusal", "no_actionable_data_query", "heavy_load", "unable_to_do", "other"
+]
 type ErrorType = _ErrorTypeLiteral
 
 

@@ -15,6 +15,7 @@ from typing import (
     overload,
 )
 
+from ai2i.chain.computation import ChainComputation, ModelRunnableFactory
 from langchain.output_parsers.fix import OutputFixingParser
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import PydanticOutputParser
@@ -22,8 +23,6 @@ from langchain_core.prompt_values import PromptValue
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.runnables.base import Runnable, RunnableLambda
 from pydantic import BaseModel
-
-from ai2i.chain.computation import ChainComputation, ModelRunnableFactory
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +90,10 @@ def define_prompt_llm_call(
     format: TemplateFormat = "f-string",
     get_extra_params: Callable[[], Mapping[str, str]] = dict,
     custom_format_instructions: str | None = None,
-) -> ChainComputation[PROMPT_PARAMS, LLM_STRUCTURED_OUTPUT | tuple[LLM_STRUCTURED_OUTPUT, ResponseMetadata]]:
+) -> ChainComputation[
+    PROMPT_PARAMS,
+    LLM_STRUCTURED_OUTPUT | tuple[LLM_STRUCTURED_OUTPUT, ResponseMetadata],
+]:
     output_parser = PydanticOutputParser(pydantic_object=output_type)
 
     format_instructions = (
@@ -109,20 +111,28 @@ def define_prompt_llm_call(
 
     # suspend the creation of the prompt, because we want the 'get_extra_params' to be called when application
     # is running and not during the define (otherwise there is no config in context fo the get_extra_params to read it)
-    create_template: ChainComputation[PROMPT_PARAMS, PromptValue] = ChainComputation.suspend_runnable(
-        lambda: cast(
-            Runnable[PROMPT_PARAMS, PromptValue],
-            PromptTemplate(
-                template=template_with_format,
-                template_format=format,
-                input_variables=list(input_type.__annotations__),
-                input_types=input_type.__annotations__,
-                partial_variables={"format_instructions": format_instructions, **get_extra_params()},
-            ),
+    create_template: ChainComputation[PROMPT_PARAMS, PromptValue] = (
+        ChainComputation.suspend_runnable(
+            lambda: cast(
+                Runnable[PROMPT_PARAMS, PromptValue],
+                PromptTemplate(
+                    template=template_with_format,
+                    template_format=format,
+                    input_variables=list(input_type.__annotations__),
+                    input_types=input_type.__annotations__,
+                    partial_variables={
+                        "format_instructions": format_instructions,
+                        **get_extra_params(),
+                    },
+                ),
+            )
         )
     )
 
-    create_output: ChainComputation[BaseMessage, LLM_STRUCTURED_OUTPUT | tuple[LLM_STRUCTURED_OUTPUT, ResponseMetadata]]
+    create_output: ChainComputation[
+        BaseMessage,
+        LLM_STRUCTURED_OUTPUT | tuple[LLM_STRUCTURED_OUTPUT, ResponseMetadata],
+    ]
     if include_response_metadata:
         create_output = (
             define_parser_with_llm(parser=output_parser)
@@ -188,17 +198,25 @@ def define_chat_llm_call(
     include_response_metadata: bool = False,
     format: TemplateFormat = "f-string",
     get_extra_params: Callable[[], Mapping[str, str]] = dict,
-) -> ChainComputation[PROMPT_PARAMS, LLM_STRUCTURED_OUTPUT | tuple[LLM_STRUCTURED_OUTPUT, ResponseMetadata]]:
+) -> ChainComputation[
+    PROMPT_PARAMS,
+    LLM_STRUCTURED_OUTPUT | tuple[LLM_STRUCTURED_OUTPUT, ResponseMetadata],
+]:
     output_parser = PydanticOutputParser(pydantic_object=output_type)
     # we lstrip all messages, for better alignment in multiline strings
     lstripped_messages = [(t, m.lstrip()) for t, m in messages]
-    chat_template = ChatPromptTemplate.from_messages(lstripped_messages, template_format=format)
-
-    create_template: ChainComputation[PROMPT_PARAMS, PromptValue] = ChainComputation.lift(
-        cast(Runnable[PROMPT_PARAMS, PromptValue], chat_template)
+    chat_template = ChatPromptTemplate.from_messages(
+        lstripped_messages, template_format=format
     )
 
-    create_output: ChainComputation[BaseMessage, LLM_STRUCTURED_OUTPUT | tuple[LLM_STRUCTURED_OUTPUT, ResponseMetadata]]
+    create_template: ChainComputation[PROMPT_PARAMS, PromptValue] = (
+        ChainComputation.lift(cast(Runnable[PROMPT_PARAMS, PromptValue], chat_template))
+    )
+
+    create_output: ChainComputation[
+        BaseMessage,
+        LLM_STRUCTURED_OUTPUT | tuple[LLM_STRUCTURED_OUTPUT, ResponseMetadata],
+    ]
     if include_response_metadata:
         create_output = (
             define_parser_with_llm(parser=output_parser)
@@ -209,7 +227,9 @@ def define_chat_llm_call(
         create_output = define_parser_with_llm(parser=output_parser)
 
     return (
-        _enrich_input_with(input_type, get_extra_params).with_trace_name("add extra_params to prompt")
+        _enrich_input_with(input_type, get_extra_params).with_trace_name(
+            "add extra_params to prompt"
+        )
         | create_template
         | define_model()
         | create_output
@@ -226,7 +246,9 @@ def _enrich_input_with(
 
 
 def define_model() -> ChainComputation[PromptValue, BaseMessage]:
-    def _internal_define_model(mf: ModelRunnableFactory) -> Runnable[PromptValue, BaseMessage]:
+    def _internal_define_model(
+        mf: ModelRunnableFactory,
+    ) -> Runnable[PromptValue, BaseMessage]:
         return mf()
 
     return ChainComputation(_internal_define_model)
@@ -242,7 +264,9 @@ def define_parser_with_llm(
 
         return ChainComputation.lift(log_retry)
 
-    def _internal_define_parser_with_llm(mf: ModelRunnableFactory) -> Runnable[BaseMessage, LLM_STRUCTURED_OUTPUT]:
+    def _internal_define_parser_with_llm(
+        mf: ModelRunnableFactory,
+    ) -> Runnable[BaseMessage, LLM_STRUCTURED_OUTPUT]:
         output_fixing_parser = OutputFixingParser.from_llm(
             llm=_create_retry_logger().build_runnable(mf) | mf(), parser=parser
         )
@@ -252,8 +276,13 @@ def define_parser_with_llm(
         # even if the abstraction was initially called with `ainvoke`.
         async def parse(input_message: BaseMessage) -> LLM_STRUCTURED_OUTPUT:
             if isinstance(input_message.content, str):
-                return cast(LLM_STRUCTURED_OUTPUT, await output_fixing_parser.aparse(input_message.content))
-            raise ValueError(f"BaseMessage's content is of type {type(input_message.content)}, which is unsupported.")
+                return cast(
+                    LLM_STRUCTURED_OUTPUT,
+                    await output_fixing_parser.aparse(input_message.content),
+                )
+            raise ValueError(
+                f"BaseMessage's content is of type {type(input_message.content)}, which is unsupported."
+            )
 
         return RunnableLambda(parse)
 

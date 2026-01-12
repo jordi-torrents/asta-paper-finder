@@ -3,19 +3,9 @@ from __future__ import annotations
 import logging
 from collections import Counter, defaultdict
 from functools import partial
-from typing import (
-    Any,
-    Iterator,
-    Literal,
-    Mapping,
-    Sequence,
-    cast,
-)
+from typing import Any, Iterator, Literal, Mapping, Sequence, cast
 
 import pandas as pd
-from pydantic import field_serializer, field_validator, model_validator
-from pydantic.fields import FieldInfo
-
 from ai2i.common.utils.asyncio import custom_gather
 from ai2i.common.utils.data_struct import SortedSet
 from ai2i.dcollection.computed_field import (
@@ -50,6 +40,8 @@ from ai2i.dcollection.interface.document import (
     SampleMethod,
 )
 from ai2i.dcollection.sampling import sample
+from pydantic import field_serializer, field_validator, model_validator
+from pydantic.fields import FieldInfo
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +60,11 @@ class PaperFinderDocumentCollection(DocumentCollection):
     @field_validator("documents", mode="after")
     @classmethod
     def dedup(cls, documents: Sequence[Document]) -> Sequence[Document]:
-        duplicates = [item for item, count in Counter([d.corpus_id for d in documents]).items() if count > 1]
+        duplicates = [
+            item
+            for item, count in Counter([d.corpus_id for d in documents]).items()
+            if count > 1
+        ]
         if duplicates:
             raise ValueError(f"Duplicate id(s) found in a collection: {duplicates}")
         return documents
@@ -84,10 +80,17 @@ class PaperFinderDocumentCollection(DocumentCollection):
         fields: Sequence[DocumentFieldName | BaseComputedField[DocumentFieldName, Any]],
     ) -> PaperFinderDocumentCollection:
         self._update_computed_fields(fields)
-        field_names_to_load = [field.field_name if isinstance(field, BaseComputedField) else field for field in fields]
-        docs_with_loaded_fields = await self.load_many(self.documents, field_names_to_load)
+        field_names_to_load = [
+            field.field_name if isinstance(field, BaseComputedField) else field
+            for field in fields
+        ]
+        docs_with_loaded_fields = await self.load_many(
+            self.documents, field_names_to_load
+        )
         return PaperFinderDocumentCollection(
-            documents=docs_with_loaded_fields, computed_fields=self.computed_fields, factory=self.factory
+            documents=docs_with_loaded_fields,
+            computed_fields=self.computed_fields,
+            factory=self.factory,
         )
 
     async def load_many(
@@ -101,19 +104,34 @@ class PaperFinderDocumentCollection(DocumentCollection):
         entities_by_id = {e.entity_id: e for e in entities}
         for loader_func, fields_to_load in loader_funcs.items():
             fields_groups.append(fields_to_load)
-            required_fields: list[DocumentFieldName] = [rf for f in fields_to_load for rf in f.required_fields]
-            entities_with_loaded_requirements = await self.load_many(entities, required_fields)
+            required_fields: list[DocumentFieldName] = [
+                rf for f in fields_to_load for rf in f.required_fields
+            ]
+            entities_with_loaded_requirements = await self.load_many(
+                entities, required_fields
+            )
             entities_limited_to_loaded_requirements = cast(
                 list[DynamicallyLoadedEntity[DocumentFieldName]],
-                [e.clone_partial(required_fields) for e in entities_with_loaded_requirements],
+                [
+                    e.clone_partial(required_fields)
+                    for e in entities_with_loaded_requirements
+                ],
             )
 
             cache = self.factory.cache()
             query_func = cast(QueryFn[DocumentFieldName], loader_func)
             if cache.enabled and not any(f.skip_cache for f in fields_to_load):
-                query_func_with_context = partial(query_func, context=self.factory.context())
-                cached_loader_func = partial(cache.fetch_async_data, query_func_with_context)
-                loading_tasks.append(cached_loader_func(entities_limited_to_loaded_requirements, fields_to_load))
+                query_func_with_context = partial(
+                    query_func, context=self.factory.context()
+                )
+                cached_loader_func = partial(
+                    cache.fetch_async_data, query_func_with_context
+                )
+                loading_tasks.append(
+                    cached_loader_func(
+                        entities_limited_to_loaded_requirements, fields_to_load
+                    )
+                )
             else:
                 loading_tasks.append(
                     query_func(
@@ -124,24 +142,30 @@ class PaperFinderDocumentCollection(DocumentCollection):
                 )
 
         loaded_entities_results = await custom_gather(
-            *loading_tasks, force_deterministic=self.factory.context().force_deterministic
+            *loading_tasks,
+            force_deterministic=self.factory.context().force_deterministic,
         )
 
-        loaded_entities_results_for_fields = list(zip(fields_groups, loaded_entities_results))
+        loaded_entities_results_for_fields = list(
+            zip(fields_groups, loaded_entities_results)
+        )
 
         for loaded_fields, loaded_entity_result in loaded_entities_results_for_fields:
             for loaded_entity in loaded_entity_result:
                 entity = entities_by_id[loaded_entity.entity_id]
                 if entity:
-                    entity.assign_loaded_values([lf.field for lf in loaded_fields], [loaded_entity])
+                    entity.assign_loaded_values(
+                        [lf.field for lf in loaded_fields], [loaded_entity]
+                    )
 
         return list(entities)
 
     def loaders_for_fields(
-        self,
-        field_names: Sequence[DocumentFieldName],
+        self, field_names: Sequence[DocumentFieldName]
     ) -> FieldLoadersToRequirements:
-        loader_funcs = dict[DocumentFieldLoader, list[FieldRequirements[DocumentFieldName]]]()
+        loader_funcs = dict[
+            DocumentFieldLoader, list[FieldRequirements[DocumentFieldName]]
+        ]()
         for field_name in field_names:
             field = self._get_dynamic_field(field_name)
             if isinstance(field, DynamicField):
@@ -153,7 +177,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
                             loader_funcs[loader_func].append(
                                 FieldRequirements[str](
                                     field=field_name,
-                                    required_fields=cast(Sequence[str], field.required_fields),
+                                    required_fields=cast(
+                                        Sequence[str], field.required_fields
+                                    ),
                                     skip_cache=not field.cache,
                                 )
                             )
@@ -163,7 +189,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
                         )
         return loader_funcs
 
-    def _get_dynamic_field(self, field_name: DocumentFieldName) -> DynamicField | FieldInfo | None:
+    def _get_dynamic_field(
+        self, field_name: DocumentFieldName
+    ) -> DynamicField | FieldInfo | None:
         return self.computed_fields.get(
             field_name,
             PaperFinderDocument.get_predefined_dynamic_fields().get(field_name),
@@ -173,13 +201,19 @@ class PaperFinderDocumentCollection(DocumentCollection):
         self, fields: Sequence[DocumentFieldName | BaseComputedField]
     ) -> PaperFinderDocumentCollection:
         collection = PaperFinderDocumentCollection(
-            documents=self.documents, computed_fields=self.computed_fields, factory=self.factory
+            documents=self.documents,
+            computed_fields=self.computed_fields,
+            factory=self.factory,
         )
         collection._update_computed_fields(fields)
         return collection
 
-    def _update_computed_fields(self, fields: Sequence[DocumentFieldName | BaseComputedField]) -> None:
-        computed_fields = [field for field in fields if isinstance(field, BaseComputedField)]
+    def _update_computed_fields(
+        self, fields: Sequence[DocumentFieldName | BaseComputedField]
+    ) -> None:
+        computed_fields = [
+            field for field in fields if isinstance(field, BaseComputedField)
+        ]
         if computed_fields:
             for computed_field in computed_fields:
                 self._update_computed_field(computed_field)
@@ -202,7 +236,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
                     context: DocumentCollectionContext,
                 ) -> Sequence[Document]:
                     for entity in entities:
-                        entity[computed_field.field_name] = computed_field.computation(entity)
+                        entity[computed_field.field_name] = computed_field.computation(
+                            entity
+                        )
                     return list(entities)
 
                 computation_loader = computation_based_loader
@@ -265,14 +301,18 @@ class PaperFinderDocumentCollection(DocumentCollection):
 
             for document in collection.documents:
                 if document.corpus_id in docs_by_corpus_id:
-                    docs_by_corpus_id[document.corpus_id] = docs_by_corpus_id[document.corpus_id].fuse(document)
+                    docs_by_corpus_id[document.corpus_id] = docs_by_corpus_id[
+                        document.corpus_id
+                    ].fuse(document)
                 else:
                     doc_to_add = document.clone_partial()
                     docs_by_corpus_id[document.corpus_id] = doc_to_add
 
         return PaperFinderDocumentCollection(
             documents=list(docs_by_corpus_id.values()),
-            computed_fields={k: next(iter(v)) for k, v in merged_computed_fields.items()},
+            computed_fields={
+                k: next(iter(v)) for k, v in merged_computed_fields.items()
+            },
             factory=self.factory,
         )
 
@@ -284,7 +324,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
 
     def take(self, n: int) -> DocumentCollection:
         return PaperFinderDocumentCollection(
-            documents=self.documents[:n], computed_fields=self.computed_fields, factory=self.factory
+            documents=self.documents[:n],
+            computed_fields=self.computed_fields,
+            factory=self.factory,
         )
 
     def filter(self, filter_fn: DocumentPredicate) -> DocumentCollection:
@@ -308,7 +350,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
             factory=self.factory,
         )
 
-    def map_enumerate(self, map_fn: DocumentEnumProjector[Document]) -> DocumentCollection:
+    def map_enumerate(
+        self, map_fn: DocumentEnumProjector[Document]
+    ) -> DocumentCollection:
         return PaperFinderDocumentCollection(
             documents=[map_fn(i, doc) for i, doc in enumerate(self.documents)],
             computed_fields=self.computed_fields,
@@ -327,7 +371,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
     def __bool__(self) -> bool:
         return bool(self.documents)
 
-    def group_by[V](self, group_fn: DocumentProjector[V]) -> dict[V, DocumentCollection]:
+    def group_by[V](
+        self, group_fn: DocumentProjector[V]
+    ) -> dict[V, DocumentCollection]:
         groups = defaultdict(list)
         for doc in self.documents:
             groups[group_fn(doc)].append(doc)
@@ -340,7 +386,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
             for key, group in groups.items()
         }
 
-    def multi_group_by[V](self, group_fn: DocumentProjector[Sequence[V]]) -> dict[V, DocumentCollection]:
+    def multi_group_by[V](
+        self, group_fn: DocumentProjector[Sequence[V]]
+    ) -> dict[V, DocumentCollection]:
         groups = defaultdict(list)
         for doc in self.documents:
             group_values = group_fn(doc)
@@ -357,7 +405,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
             for key, group in groups.items()
         }
 
-    def sorted(self, sort_definitions: Sequence[DocumentCollectionSortDef]) -> DocumentCollection:
+    def sorted(
+        self, sort_definitions: Sequence[DocumentCollectionSortDef]
+    ) -> DocumentCollection:
         documents = list(self.documents)
         # Apply each sort definition in reverse order (since each sort is stable, it will keep previous sorts intact).
         for sort_def in reversed(sort_definitions):
@@ -397,9 +447,13 @@ class PaperFinderDocumentCollection(DocumentCollection):
                             skip_doc = True
                             break
                         case "raise":
-                            raise ValueError(f"Field {field} not loaded in entity_id={doc.corpus_id}.")
+                            raise ValueError(
+                                f"Field {field} not loaded in entity_id={doc.corpus_id}."
+                            )
                         case _:
-                            raise ValueError(f"Invalid handle_missing_fields: {handle_missing_fields}")
+                            raise ValueError(
+                                f"Invalid handle_missing_fields: {handle_missing_fields}"
+                            )
                 else:
                     doc_items[field] = doc[field]
             if not skip_doc:
@@ -407,9 +461,7 @@ class PaperFinderDocumentCollection(DocumentCollection):
 
         return pd.DataFrame(data)
 
-    def to_debug_dataframe(
-        self,
-    ) -> pd.DataFrame:
+    def to_debug_dataframe(self) -> pd.DataFrame:
         data: list[dict] = []
         for doc in self.documents:
             doc_fields = doc.get_loaded_fields()
@@ -436,7 +488,9 @@ class PaperFinderDocumentCollection(DocumentCollection):
         return field_requirements
 
 
-type FieldLoadersToRequirements = Mapping[DocumentFieldLoader, list[FieldRequirements[DocumentFieldName]]]
+type FieldLoadersToRequirements = Mapping[
+    DocumentFieldLoader, list[FieldRequirements[DocumentFieldName]]
+]
 
 
 def keyed_by_corpus_id(documents: Sequence[Document]) -> dict[CorpusId, Document]:

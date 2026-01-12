@@ -1,10 +1,4 @@
-from ai2i.dcollection import (
-    Offset,
-    RefMention,
-    SentenceOffsets,
-    Snippet,
-)
-
+from ai2i.dcollection import Offset, RefMention, SentenceOffsets, Snippet
 from mabool.agents.snowball.snippet_snowball import (
     split_snippets_to_sentence_snippets,
     split_text_to_sentence_offsets,
@@ -55,8 +49,7 @@ def test_split_text_to_sentence_offsets_with_special_cases() -> None:
 
 def test_split_text_to_sentence_offsets_with_no_char_start_offset() -> None:
     snippet = Snippet(
-        text="This is a sentence. This is another sentence!",
-        char_start_offset=None,
+        text="This is a sentence. This is another sentence!", char_start_offset=None
     )
     expected_offsets = [
         SentenceOffsets(
@@ -73,10 +66,7 @@ def test_split_text_to_sentence_offsets_with_no_char_start_offset() -> None:
 
 
 def test_split_text_to_sentence_offsets_with_empty_text() -> None:
-    snippet = Snippet(
-        text="",
-        char_start_offset=0,
-    )
+    snippet = Snippet(text="", char_start_offset=0)
     expected_offsets: list[SentenceOffsets] = []
     result = split_text_to_sentence_offsets(snippet)
     assert result == expected_offsets
@@ -113,7 +103,11 @@ def test_split_snippets_to_sentence_snippets_with_ref_mention() -> None:
         text="This is a sentence by Doe et. al. that keeps going till the end of the text. This is another sentence!",
         char_start_offset=0,
         ref_mentions=[
-            RefMention(matched_paper_corpus_id="123", within_snippet_offset_start=10, within_snippet_offset_end=18)
+            RefMention(
+                matched_paper_corpus_id="123",
+                within_snippet_offset_start=10,
+                within_snippet_offset_end=18,
+            )
         ],
     )
     expected_snippets = [
@@ -123,7 +117,11 @@ def test_split_snippets_to_sentence_snippets_with_ref_mention() -> None:
             char_start_offset=0,
             char_end_offset=77,
             ref_mentions=[
-                RefMention(matched_paper_corpus_id="123", within_snippet_offset_start=10, within_snippet_offset_end=18)
+                RefMention(
+                    matched_paper_corpus_id="123",
+                    within_snippet_offset_start=10,
+                    within_snippet_offset_end=18,
+                )
             ],
         ),
         Snippet(
@@ -143,7 +141,11 @@ def test_split_snippets_to_sentence_snippets_with_no_char_start_offset() -> None
         text="This is a sentence. This is another sentence!",
         char_start_offset=None,
         ref_mentions=[
-            RefMention(matched_paper_corpus_id="123", within_snippet_offset_start=10, within_snippet_offset_end=18)
+            RefMention(
+                matched_paper_corpus_id="123",
+                within_snippet_offset_start=10,
+                within_snippet_offset_end=18,
+            )
         ],
     )
     expected_snippets = [snippet]
@@ -152,10 +154,7 @@ def test_split_snippets_to_sentence_snippets_with_no_char_start_offset() -> None
 
 
 def test_split_snippets_to_sentence_snippets_with_empty_text() -> None:
-    snippet = Snippet(
-        text="",
-        char_start_offset=0,
-    )
+    snippet = Snippet(text="", char_start_offset=0)
     expected_snippets: list[Snippet] = [snippet]
     result = split_snippets_to_sentence_snippets(snippet)
     assert result == expected_snippets

@@ -1,13 +1,5 @@
 from functools import wraps
-from typing import (
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Generic,
-    ParamSpec,
-    TypeVar,
-    cast,
-)
+from typing import AsyncIterator, Awaitable, Callable, Generic, ParamSpec, TypeVar, cast
 
 from httpcore import TimeoutException as HTTPCoreTimeoutException
 from httpx import RemoteProtocolError as HTTPXRemoteProtocolError

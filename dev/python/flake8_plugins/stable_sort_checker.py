@@ -12,10 +12,7 @@ class StableSortChecker:
     version = "0.1.0"
 
     # Pandas methods that require kind='stable'
-    PANDAS_SORT_METHODS = {
-        "sort_values",
-        "sort_index",
-    }
+    PANDAS_SORT_METHODS = {"sort_values", "sort_index"}
 
     def __init__(self, tree: ast.AST, filename: str):
         self.tree = tree
@@ -25,7 +22,9 @@ class StableSortChecker:
     def _check_pandas_sort(self, node: Call) -> bool:
         """Check if pandas sort method has kind='stable'."""
         return any(
-            keyword.arg == "kind" and isinstance(keyword.value, ast.Constant) and keyword.value.value == "stable"
+            keyword.arg == "kind"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == "stable"
             for keyword in node.keywords
         )
 
@@ -36,7 +35,11 @@ class StableSortChecker:
             return True
 
         # Check for set() constructor
-        if isinstance(node, Call) and isinstance(node.func, ast.Name) and node.func.id == "set":
+        if (
+            isinstance(node, Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "set"
+        ):
             return True
 
         # Check if it's a variable we know contains a set

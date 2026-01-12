@@ -15,18 +15,11 @@ from ai2i.dcollection import (
     S2PaperRelevanceSearchQuery,
 )
 from ai2i.di import DI
-
-from mabool.agents.common.common import (
-    AgentState,
-)
+from mabool.agents.common.common import AgentState
 from mabool.agents.common.domain_utils import get_fields_of_study_filter_from_domains
 from mabool.agents.common.utils import alog_args
 from mabool.agents.llm_suggestion.llm_suggestion_agent import get_llm_suggested_papers
-from mabool.data_model.agent import (
-    AgentInput,
-    AgentOutput,
-    DomainsIdentified,
-)
+from mabool.data_model.agent import AgentInput, AgentOutput, DomainsIdentified
 from mabool.data_model.config import cfg_schema
 from mabool.infra.operatives import CompleteResponse, Operative, OperativeResponse
 from mabool.utils.asyncio import custom_gather
@@ -49,20 +42,22 @@ type SpecificPaperByNameState = AgentState
 type SpecificPaperByNameOutput = AgentOutput
 
 
-async def get_top_cited_corpus_ids(
-    docs: DocumentCollection,
-) -> Counter[str]:
+async def get_top_cited_corpus_ids(docs: DocumentCollection) -> Counter[str]:
     cited_corpus_ids_counter: Counter[str] = Counter()
     for doc in docs.documents:
         if not doc.snippets:
             continue
         for snippet in doc.snippets:
             if snippet.ref_mentions:
-                cited_corpus_ids_counter.update([rm.matched_paper_corpus_id for rm in snippet.ref_mentions])
+                cited_corpus_ids_counter.update(
+                    [rm.matched_paper_corpus_id for rm in snippet.ref_mentions]
+                )
     return cited_corpus_ids_counter
 
 
-def get_top_candidate_by_count(cited_corpus_ids_counter: Counter[str]) -> Counter[str] | None:
+def get_top_candidate_by_count(
+    cited_corpus_ids_counter: Counter[str],
+) -> Counter[str] | None:
     logger.info(f"Top cited corpus_ids: {cited_corpus_ids_counter.most_common(5)}")
     if len(cited_corpus_ids_counter) == 0:
         logger.warning("No cited corpus_ids found in the results")
@@ -121,7 +116,9 @@ def url_contains_name(name: str, abstract: str) -> bool:
     # this is bad match:  "https://spikeallenai.org" or "https://allen.ai/spikey"
     # currently also catches stuff like "https://allen.ai/vision-spike" and "https://allen.ai/spike-vision"
     # which may give false positives
-    match = re.search(rf"(https?://)[^\s]*\b{re.escape(name)}\b", abstract, re.IGNORECASE)
+    match = re.search(
+        rf"(https?://)[^\s]*\b{re.escape(name)}\b", abstract, re.IGNORECASE
+    )
     if match:
         return True
 
@@ -139,10 +136,7 @@ def title_introduces_name(name: str, title: str) -> bool:
     return False
 
 
-def score_paper_for_name(
-    extracted_name: str,
-    doc: Document,
-) -> float:
+def score_paper_for_name(extracted_name: str, doc: Document) -> float:
     def scoring_func(
         extracted_name: str,
         found_in_search_with_content: int,
@@ -160,7 +154,9 @@ def score_paper_for_name(
         elif extracted_name in title:
             score += 0.5 * weak_multiplier
         if abstract:
-            num_occurrences = len(re.findall(rf"\b{re.escape(extracted_name)}\b", abstract))
+            num_occurrences = len(
+                re.findall(rf"\b{re.escape(extracted_name)}\b", abstract)
+            )
             score += min(num_occurrences, 3) * 0.1 * strong_multiplier
             if num_occurrences > 0:
                 if we_introduce(extracted_name, abstract):
@@ -175,7 +171,8 @@ def score_paper_for_name(
         return score
 
     found_in_search_with_content = doc.origins is not None and any(
-        isinstance(origin.query, S2PaperRelevanceSearchQuery) and len(origin.query.query) > len(extracted_name)
+        isinstance(origin.query, S2PaperRelevanceSearchQuery)
+        and len(origin.query.query) > len(extracted_name)
         for origin in doc.origins
     )
     title = doc.title or ""
@@ -190,11 +187,21 @@ def score_paper_for_name(
     )
     if capitalized_weirdly(extracted_name):
         case_sensitive_score = scoring_func(
-            extracted_name, found_in_search_with_content, title, abstract, strong_multiplier=1.0, weak_multiplier=1
+            extracted_name,
+            found_in_search_with_content,
+            title,
+            abstract,
+            strong_multiplier=1.0,
+            weak_multiplier=1,
         )
     elif extracted_name.lower() == extracted_name:
         case_sensitive_score = scoring_func(
-            extracted_name, found_in_search_with_content, title, abstract, strong_multiplier=0.75, weak_multiplier=0.5
+            extracted_name,
+            found_in_search_with_content,
+            title,
+            abstract,
+            strong_multiplier=0.75,
+            weak_multiplier=0.5,
         )
     else:
         case_sensitive_score = case_insensitive_score
@@ -216,7 +223,11 @@ async def s2_name_relevance_search(
     s2_futures: list[Awaitable[DocumentCollection]] = []
     s2_futures.append(
         DC.from_s2_search(
-            query=extracted_name, limit=5, time_range=time_range, venues=venues, fields_of_study=fields_of_study
+            query=extracted_name,
+            limit=5,
+            time_range=time_range,
+            venues=venues,
+            fields_of_study=fields_of_study,
         )
     )
     stripped_content = (
@@ -250,13 +261,18 @@ async def s2_name_relevance_search(
         [
             AssignedField[float](
                 field_name="s2_search_score",
-                assigned_values=[score_paper_for_name(extracted_name, doc) for doc in s2_results_merged.documents],
-            ),
+                assigned_values=[
+                    score_paper_for_name(extracted_name, doc)
+                    for doc in s2_results_merged.documents
+                ],
+            )
         ]
     )
 
     sorted_docs = docs_with_scores.sorted(
-        sort_definitions=[DocumentCollectionSortDef(field_name="s2_search_score", order="desc")]
+        sort_definitions=[
+            DocumentCollectionSortDef(field_name="s2_search_score", order="desc")
+        ]
     )
 
     def _score_above(doc: Document) -> bool:
@@ -274,8 +290,13 @@ async def score_specific_by_name_all_origins(
     s2_search_results: DocumentCollection,
     spike_most_cited_results: DocumentCollection,
 ) -> DocumentCollection:
-    def score_by_rank(collection: DocumentCollection, max_score: int = 3) -> dict[str, float]:
-        rank_scores = {doc.corpus_id: min(len(collection) - i, max_score) for i, doc in enumerate(collection.documents)}
+    def score_by_rank(
+        collection: DocumentCollection, max_score: int = 3
+    ) -> dict[str, float]:
+        rank_scores = {
+            doc.corpus_id: min(len(collection) - i, max_score)
+            for i, doc in enumerate(collection.documents)
+        }
 
         def normalize_scores(scores: dict[str, int]) -> dict[str, float]:
             if not scores:
@@ -284,19 +305,26 @@ async def score_specific_by_name_all_origins(
             min_score = min(scores.values())
             if max_score == min_score:
                 return {corpus_id: 1 for corpus_id in scores.keys()}
-            return {corpus_id: (score - min_score) / (max_score - min_score) for corpus_id, score in scores.items()}
+            return {
+                corpus_id: (score - min_score) / (max_score - min_score)
+                for corpus_id, score in scores.items()
+            }
 
         normalized_rank_scores = normalize_scores(rank_scores)
 
         # the base score for just being in the results is 1, the rank is added to it as a bonus
-        return {corpus_id: score + 1 for corpus_id, score in normalized_rank_scores.items()}
+        return {
+            corpus_id: score + 1 for corpus_id, score in normalized_rank_scores.items()
+        }
 
     logger.info("Scoring results")
     llm_suggest_scores = score_by_rank(llm_suggest_results)
     s2_search_scores = score_by_rank(s2_search_results)
     spike_most_cited_scores = score_by_rank(spike_most_cited_results)
 
-    def weighted_scoring_func(scoring_maps: Sequence[dict[str, float]], weights: Sequence[float]) -> dict[str, float]:
+    def weighted_scoring_func(
+        scoring_maps: Sequence[dict[str, float]], weights: Sequence[float]
+    ) -> dict[str, float]:
         if len(scoring_maps) != len(weights):
             raise ValueError("scoring_maps and weights must have the same length")
         scores: dict[str, float] = defaultdict(float)
@@ -305,14 +333,19 @@ async def score_specific_by_name_all_origins(
                 scores[corpus_id] += score * weight
         return scores
 
-    weighted_scores = weighted_scoring_func([llm_suggest_scores, spike_most_cited_scores, s2_search_scores], [1, 1, 1])
+    weighted_scores = weighted_scoring_func(
+        [llm_suggest_scores, spike_most_cited_scores, s2_search_scores], [1, 1, 1]
+    )
 
     results_with_scores = await merged_results.with_fields(
         [
             AssignedField[float](
                 field_name="specific_paper_by_name_score",
-                assigned_values=[weighted_scores.get(doc.corpus_id, 0) for doc in merged_results.documents],
-            ),
+                assigned_values=[
+                    weighted_scores.get(doc.corpus_id, 0)
+                    for doc in merged_results.documents
+                ],
+            )
         ]
     )
     return results_with_scores
@@ -371,8 +404,12 @@ async def get_specific_paper_by_name_with_reporting(
     #     spike_most_cited_results = DC.empty()
 
     logger.info("All results gathered, merging...")
-    merged_results = s2_search_results + llm_suggest_results  # + spike_most_cited_results
-    logger.info(f"Merged results: {len(merged_results.documents or [])} candidate documents")
+    merged_results = (
+        s2_search_results + llm_suggest_results
+    )  # + spike_most_cited_results
+    logger.info(
+        f"Merged results: {len(merged_results.documents or [])} candidate documents"
+    )
 
     results_with_scores = await score_specific_by_name_all_origins(
         merged_results=merged_results,
@@ -383,7 +420,11 @@ async def get_specific_paper_by_name_with_reporting(
 
     if len(results_with_scores) > 1:
         results_with_scores = results_with_scores.sorted(
-            sort_definitions=[DocumentCollectionSortDef(field_name="specific_paper_by_name_score", order="desc")]
+            sort_definitions=[
+                DocumentCollectionSortDef(
+                    field_name="specific_paper_by_name_score", order="desc"
+                )
+            ]
         )
 
     # filter out results with score lower than filter_threshold
@@ -397,29 +438,46 @@ async def get_specific_paper_by_name_with_reporting(
         logger.warning("No results found after filtering")
         return DC.empty()
 
-    logger.info(f"Results after filtering: {len(results_with_scores.documents)} documents")
+    logger.info(
+        f"Results after filtering: {len(results_with_scores.documents)} documents"
+    )
 
     # add final_agent_score batch computed field as normalized specific_paper_by_name_score
     async def calculate_final_specific_paper_by_name_score(
         docs: Sequence[Document],
     ) -> Sequence[float | DocLoadingError]:
-        if not docs or not any(doc["specific_paper_by_name_score"] is not None for doc in docs):
+        if not docs or not any(
+            doc["specific_paper_by_name_score"] is not None for doc in docs
+        ):
             return [
                 DocLoadingError(
-                    corpus_id=d.corpus_id, original_exception=ValueError("missing specific_paper_by_name_score")
+                    corpus_id=d.corpus_id,
+                    original_exception=ValueError(
+                        "missing specific_paper_by_name_score"
+                    ),
                 )
                 for d in docs
             ]
         max_score = max(
-            doc["specific_paper_by_name_score"] for doc in docs if doc["specific_paper_by_name_score"] is not None
+            doc["specific_paper_by_name_score"]
+            for doc in docs
+            if doc["specific_paper_by_name_score"] is not None
         )
         min_score = min(
             0,
-            min(doc["specific_paper_by_name_score"] for doc in docs if doc["specific_paper_by_name_score"] is not None),
+            min(
+                doc["specific_paper_by_name_score"]
+                for doc in docs
+                if doc["specific_paper_by_name_score"] is not None
+            ),
         )
         if max_score == min_score:
             return [1.0] * len(docs)
-        return [((doc["specific_paper_by_name_score"] or 0) - min_score) / (max_score - min_score) for doc in docs]
+        return [
+            ((doc["specific_paper_by_name_score"] or 0) - min_score)
+            / (max_score - min_score)
+            for doc in docs
+        ]
 
     results_with_scores = await results_with_scores.with_fields(
         [
@@ -427,7 +485,7 @@ async def get_specific_paper_by_name_with_reporting(
                 field_name="final_specific_paper_by_name_score",
                 computation_func=calculate_final_specific_paper_by_name_score,
                 required_fields=["specific_paper_by_name_score"],
-            ),
+            )
         ]
     )
     return results_with_scores
@@ -442,7 +500,9 @@ async def get_specific_paper_by_name(
     time_range: ExtractedYearlyTimeRange | None = None,
     venues: list[str] | None = None,
     authors: list[str] | None = None,
-    filter_threshold: float | None = ConfigValue(cfg_schema.specific_paper_by_name_agent.filter_threshold),
+    filter_threshold: float | None = ConfigValue(
+        cfg_schema.specific_paper_by_name_agent.filter_threshold
+    ),
     search_iteration: int = 1,
 ) -> DocumentCollection:
     return await get_specific_paper_by_name_with_reporting(
@@ -459,14 +519,18 @@ async def get_specific_paper_by_name(
 
 
 class SpecificPaperByNameAgent(
-    Operative[SpecificPaperByNameInput, SpecificPaperByNameOutput, SpecificPaperByNameState]
+    Operative[
+        SpecificPaperByNameInput, SpecificPaperByNameOutput, SpecificPaperByNameState
+    ]
 ):
     def register(self) -> None: ...
 
     @alog_args(log_function=logging.info)
     async def handle_operation(
         self, state: SpecificPaperByNameState | None, inputs: SpecificPaperByNameInput
-    ) -> tuple[SpecificPaperByNameState | None, OperativeResponse[SpecificPaperByNameOutput]]:
+    ) -> tuple[
+        SpecificPaperByNameState | None, OperativeResponse[SpecificPaperByNameOutput]
+    ]:
         search_results = await get_specific_paper_by_name(
             user_input=inputs.user_input,
             extracted_name=inputs.extracted_name,
@@ -475,12 +539,18 @@ class SpecificPaperByNameAgent(
             venues=inputs.venues,
             authors=inputs.authors,
             domains=inputs.domains,
-            filter_threshold=config_value(cfg_schema.specific_paper_by_name_agent.filter_threshold),
+            filter_threshold=config_value(
+                cfg_schema.specific_paper_by_name_agent.filter_threshold
+            ),
         )
 
-        top2_results = search_results.take(config_value(cfg_schema.search_by_author_agent.limit_for_specific))
+        top2_results = search_results.take(
+            config_value(cfg_schema.search_by_author_agent.limit_for_specific)
+        )
 
         return (
             state,
-            CompleteResponse(data=AgentOutput(response_text="", doc_collection=top2_results)),
+            CompleteResponse(
+                data=AgentOutput(response_text="", doc_collection=top2_results)
+            ),
         )

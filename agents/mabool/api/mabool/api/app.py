@@ -13,16 +13,18 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
 from mabool.api.round_v2_routes import router as rounds_v2_routes
 from mabool.data_model.config import cfg_schema
 from mabool.services.services_deps import services_module
 from mabool.utils.logging import initialize_logging
 from mabool.utils.paths import project_root
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
-def create_app(di_patched_instances: dict[str, Any] | None = None, **config_overrides: dict[str, Any]) -> FastAPI:
+def create_app(
+    di_patched_instances: dict[str, Any] | None = None,
+    **config_overrides: dict[str, Any],
+) -> FastAPI:
     # start by loading app config
     app_config = load_conf(project_root() / "conf")
     config_settings = app_config.config.merge_dict(config_overrides)
@@ -33,9 +35,13 @@ def create_app(di_patched_instances: dict[str, Any] | None = None, **config_over
     app_ctx = create_app_context(services_module)
 
     # create an app that manages dependency injection scopes (and config)
-    app = create_managed_app(app_ctx, config_settings, di_patched_instances, project_root() / "conf")
+    app = create_managed_app(
+        app_ctx, config_settings, di_patched_instances, project_root() / "conf"
+    )
 
-    with application_config_ctx(AppConfig(config=config_settings, user_facing=app_config.user_facing)):
+    with application_config_ctx(
+        AppConfig(config=config_settings, user_facing=app_config.user_facing)
+    ):
         logger = initialize_logging(
             app,
             config_value(cfg_schema.log_max_length, default=sys.maxsize),
@@ -81,15 +87,27 @@ def setup_error_handlers(app: FastAPI, logger: logging.Logger) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
         if isinstance(exc.detail, str):
-            return JSONResponse(jsonable_encoder({"error": exc.detail}), status_code=exc.status_code)
-        elif isinstance(exc.detail, dict):  # dict should already contain a json with "error" key.
-            return JSONResponse(jsonable_encoder(exc.detail), status_code=exc.status_code)
+            return JSONResponse(
+                jsonable_encoder({"error": exc.detail}), status_code=exc.status_code
+            )
+        elif isinstance(
+            exc.detail, dict
+        ):  # dict should already contain a json with "error" key.
+            return JSONResponse(
+                jsonable_encoder(exc.detail), status_code=exc.status_code
+            )
         else:
-            return JSONResponse(jsonable_encoder({"error": exc.detail}), status_code=exc.status_code)
+            return JSONResponse(
+                jsonable_encoder({"error": exc.detail}), status_code=exc.status_code
+            )
 
     @app.exception_handler(RequestValidationError)
-    async def request_validation_error_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
-        return JSONResponse(jsonable_encoder({"error": {"detail": exc.errors()}}), status_code=422)
+    async def request_validation_error_exception_handler(
+        _: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            jsonable_encoder({"error": {"detail": exc.errors()}}), status_code=422
+        )
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(_: Request, exc: Exception) -> JSONResponse:

@@ -120,13 +120,21 @@ class AuthorSpec(BaseSpec):
 
     @model_validator(mode="after")
     def not_all_none(self) -> Self:
-        if not any(getattr(self, field) is not None for field in self.model_fields if field != "min_authors"):
+        if not any(
+            getattr(self, field) is not None
+            for field in self.model_fields
+            if field != "min_authors"
+        ):
             raise ValueError("At least one field other than min_authors must be set")
         return self
 
     @model_validator(mode="after")
     def min_authors_use_any(self) -> Self:
-        if self.min_authors is not None and self.papers and self.papers.op == "all_authors_of":
+        if (
+            self.min_authors is not None
+            and self.papers
+            and self.papers.op == "all_authors_of"
+        ):
             raise ValueError("min_authors cannot be used with all_authors_of")
         return self
 
@@ -170,7 +178,11 @@ class PaperSpec(BaseSpec):
 
     @model_validator(mode="after")
     def at_least_one_positve_field(self) -> Self:
-        if not any(getattr(self, field) is not None for field in self.model_fields if field != "exclude"):
+        if not any(
+            getattr(self, field) is not None
+            for field in self.model_fields
+            if field != "exclude"
+        ):
             raise ValueError("At least one field must be set")
         return self
 
@@ -180,12 +192,20 @@ class PaperSpec(BaseSpec):
             for field in self.exclude.model_fields:
                 pos_value = getattr(self, field)
                 neg_value = getattr(self.exclude, field)
-                if neg_value is not None and pos_value is not None and neg_value == pos_value:
-                    raise ValueError(f"Field '{field}' cannot be both set and excluded with the same value")
+                if (
+                    neg_value is not None
+                    and pos_value is not None
+                    and neg_value == pos_value
+                ):
+                    raise ValueError(
+                        f"Field '{field}' cannot be both set and excluded with the same value"
+                    )
         return self
 
     def normalize(self) -> PaperSpec:
-        return self.model_copy(update={"name": _normalize(self.name), "content": _normalize(self.content)})
+        return self.model_copy(
+            update={"name": _normalize(self.name), "content": _normalize(self.content)}
+        )
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, PaperSpec):

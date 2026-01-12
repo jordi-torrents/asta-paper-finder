@@ -3,18 +3,10 @@ import re
 from datetime import date, datetime, timedelta
 from typing import Sequence, cast
 
-from semanticscholar.Author import Author
-from semanticscholar.Citation import Citation
-from semanticscholar.PaginatedResults import PaginatedResults
-from semanticscholar.Paper import Paper
-from semanticscholar.SemanticScholarException import ObjectNotFoundException
-
 from ai2i.common.utils.asyncio import custom_gather
 from ai2i.dcollection import PaperFinderDocument
 from ai2i.dcollection.data_access_context import DocumentCollectionContext
-from ai2i.dcollection.external_api.s2.author import (
-    AUTHOR_PAPERS_PER_CALL_LIMIT,
-)
+from ai2i.dcollection.external_api.s2.author import AUTHOR_PAPERS_PER_CALL_LIMIT
 from ai2i.dcollection.external_api.s2.common import AsyncPaginatedResults, s2_retry
 from ai2i.dcollection.interface.collection import Document
 from ai2i.dcollection.interface.document import (
@@ -25,6 +17,11 @@ from ai2i.dcollection.interface.document import (
     S2PaperTitleSearchQuery,
 )
 from ai2i.dcollection.loaders.s2_rest import s2_paper_to_document
+from semanticscholar.Author import Author
+from semanticscholar.Citation import Citation
+from semanticscholar.PaginatedResults import PaginatedResults
+from semanticscholar.Paper import Paper
+from semanticscholar.SemanticScholarException import ObjectNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +42,11 @@ def merge_time_range_and_inserted_before(
     last_allowed_pub_date = get_publication_date_from_inserted_before(inserted_before)
     end = ""
     if last_allowed_pub_date:
-        if time_range and time_range.end and time_range.end < last_allowed_pub_date.year:
+        if (
+            time_range
+            and time_range.end
+            and time_range.end < last_allowed_pub_date.year
+        ):
             end_year = time_range.end
             end = time_range.end
         else:
@@ -57,7 +58,9 @@ def merge_time_range_and_inserted_before(
     return f"{start}:{end}" if (start or end) else ""
 
 
-def get_publication_date_from_inserted_before(inserted_before: str | None) -> date | None:
+def get_publication_date_from_inserted_before(
+    inserted_before: str | None,
+) -> date | None:
     res = None
 
     if inserted_before:
@@ -89,7 +92,9 @@ def get_by_title_origin_query(
 ) -> OriginQuery:
     return OriginQuery(
         query_type="s2_title_search",
-        query=S2PaperTitleSearchQuery(query=query, time_range=time_range, venues=venues),
+        query=S2PaperTitleSearchQuery(
+            query=query, time_range=time_range, venues=venues
+        ),
         ranks=[1],
     )
 
@@ -103,7 +108,9 @@ async def s2_papers_by_title(
     inserted_before: str | None = None,
 ) -> Sequence[Document]:
     clean_query = re.sub(r"[:^]", "", query).replace("-", " ")
-    publication_date_or_year = merge_time_range_and_inserted_before(time_range, inserted_before)
+    publication_date_or_year = merge_time_range_and_inserted_before(
+        time_range, inserted_before
+    )
     if publication_date_or_year is None:
         # this means start date is larger than end date
         return []
@@ -148,7 +155,9 @@ async def s2_paper_search(
 ) -> Sequence[Document]:
     clean_query = re.sub(r"[:^]", "", query).replace("-", " ")
     bulk = True if clean_query == "" else False
-    publication_date_or_year = merge_time_range_and_inserted_before(time_range, inserted_before)
+    publication_date_or_year = merge_time_range_and_inserted_before(
+        time_range, inserted_before
+    )
     if publication_date_or_year is None:
         # this means start date is larger than end date
         return []
@@ -175,7 +184,9 @@ async def s2_paper_search(
             paper=paper,
             origin_query=OriginQuery(
                 query_type="s2_bulk_search" if bulk else "s2_relevance_search",
-                query=S2PaperRelevanceSearchQuery(query=query, num_results=limit, time_range=time_range, venues=venues),
+                query=S2PaperRelevanceSearchQuery(
+                    query=query, num_results=limit, time_range=time_range, venues=venues
+                ),
                 iteration=search_iteration,
                 ranks=[i + 1],
             ),
@@ -197,7 +208,11 @@ async def s2_by_author(
             doc
             for docs in await custom_gather(
                 *[
-                    s2_papers_by_author_id(author.authorId, context=context, inserted_before=inserted_before)
+                    s2_papers_by_author_id(
+                        author.authorId,
+                        context=context,
+                        inserted_before=inserted_before,
+                    )
                     for author in author_profiles
                 ],
                 force_deterministic=context.force_deterministic,
@@ -214,7 +229,9 @@ async def s2_papers_by_author_id(
     inserted_before: str | None = None,
 ) -> Sequence[Document]:
     author_papers_result = await context.s2_client.get_author_papers(
-        author_id=author_id, fields=["corpusId", "year", "publicationDate"], limit=AUTHOR_PAPERS_PER_CALL_LIMIT
+        author_id=author_id,
+        fields=["corpusId", "year", "publicationDate"],
+        limit=AUTHOR_PAPERS_PER_CALL_LIMIT,
     )
     last_allowed_pub_date = get_publication_date_from_inserted_before(inserted_before)
 
@@ -222,7 +239,9 @@ async def s2_papers_by_author_id(
         PaperFinderDocument(corpus_id=str(paper.corpusId))
         async for paper in AsyncPaginatedResults[Paper](results=author_papers_result)
         if check_if_paper_inserted_before(
-            last_allowed_pub_date, paper.year, paper.publicationDate.date() if paper.publicationDate else None
+            last_allowed_pub_date,
+            paper.year,
+            paper.publicationDate.date() if paper.publicationDate else None,
         )
     ]
 
@@ -236,9 +255,14 @@ async def s2_fetch_citing_papers(
     inserted_before: str | None = None,
 ) -> Sequence[Document]:
     fields = ["corpusId", "title", "year", "contexts", "publicationDate"]
-    citing_papers_result = await context.s2_client.get_paper_citations(f"CorpusId:{corpus_id}", fields)
+    citing_papers_result = await context.s2_client.get_paper_citations(
+        f"CorpusId:{corpus_id}", fields
+    )
     s2_papers = [
-        citation async for citation in AsyncPaginatedResults[Citation](citing_papers_result, max_results=total_limit)
+        citation
+        async for citation in AsyncPaginatedResults[Citation](
+            citing_papers_result, max_results=total_limit
+        )
     ]
     last_allowed_pub_date = get_publication_date_from_inserted_before(inserted_before)
     date_filtered_papers = [
@@ -247,7 +271,11 @@ async def s2_fetch_citing_papers(
         if check_if_paper_inserted_before(
             last_allowed_pub_date,
             citation.paper.year,
-            citation.paper.publicationDate.date() if citation.paper.publicationDate else None,
+            (
+                citation.paper.publicationDate.date()
+                if citation.paper.publicationDate
+                else None
+            ),
         )
     ]
 

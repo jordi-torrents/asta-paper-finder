@@ -5,14 +5,13 @@ from typing import Literal, Optional, Sequence
 import cohere
 from ai2i.common.utils.batch import batch_process
 from ai2i.config import ConfigValue, config_value, configurable
-from pydantic import BaseModel, Field
-
 from mabool.data_model.config import cfg_schema
+from pydantic import BaseModel, Field
 
 
 @configurable
 def get_cohere_client(
-    cohere_api_key: str | None = ConfigValue(cfg_schema.cohere_api_key, default=None),
+    cohere_api_key: str | None = ConfigValue(cfg_schema.cohere_api_key, default=None)
 ) -> cohere.AsyncClient:
     if cohere_api_key is not None:
         api_key = cohere_api_key
@@ -62,7 +61,9 @@ class CohereRerankScorer(BaseModel, RerankScorer):
         arbitrary_types_allowed = True
 
     async def rerank(self, rerank_input: RerankScoreInput) -> RerankScoreOutput:
-        async def rerank_batch(documents: Sequence[RerankScoreDocInput]) -> Sequence[RerankScoreResult]:
+        async def rerank_batch(
+            documents: Sequence[RerankScoreDocInput],
+        ) -> Sequence[RerankScoreResult]:
             doc_texts_with_id = [(doc.corpus_id, doc.text) for doc in documents]
             corpus_ids, doc_texts = zip(*doc_texts_with_id)
 
@@ -75,7 +76,9 @@ class CohereRerankScorer(BaseModel, RerankScorer):
             )
 
             return [
-                RerankScoreResult(corpus_id=corpus_ids[result.index], score=result.relevance_score)
+                RerankScoreResult(
+                    corpus_id=corpus_ids[result.index], score=result.relevance_score
+                )
                 for result in cohere_results.results
             ]
 
@@ -87,4 +90,8 @@ class CohereRerankScorer(BaseModel, RerankScorer):
             force_deterministic=config_value(cfg_schema.force_deterministic),
         )
 
-        return RerankScoreOutput(results=list(results), method="cohere", rerank_model_name=self.rerank_model_name)
+        return RerankScoreOutput(
+            results=list(results),
+            method="cohere",
+            rerank_model_name=self.rerank_model_name,
+        )

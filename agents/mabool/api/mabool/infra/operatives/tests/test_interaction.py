@@ -5,7 +5,6 @@ from typing import Any, AsyncIterator
 import pytest
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
-
 from mabool.infra.operatives import UnexpectedSessionStateError
 from mabool.infra.operatives.tests.mock_app import create_mock_app
 
@@ -36,18 +35,38 @@ async def test_interactions(async_client: AsyncClient) -> None:
         headers={"Content-Type": "application/json", "Conversation-Thread-Id": "123"},
         json={"query": dark_query},
     )
-    assert response.json() == {"question": "Who are you?", "options": ["fox", "bat", "box"]}
+    assert response.json() == {
+        "question": "Who are you?",
+        "options": ["fox", "bat", "box"],
+    }
 
-    response = await async_client.post(url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "box"})
-    assert response.json() == {"question": "Who are you?", "options": ["fox", "bat", "box"]}
+    response = await async_client.post(
+        url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "box"}
+    )
+    assert response.json() == {
+        "question": "Who are you?",
+        "options": ["fox", "bat", "box"],
+    }
 
-    response = await async_client.post(url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "box"})
-    assert response.json() == {"question": "Who are you?", "options": ["fox", "bat", "box"]}
+    response = await async_client.post(
+        url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "box"}
+    )
+    assert response.json() == {
+        "question": "Who are you?",
+        "options": ["fox", "bat", "box"],
+    }
 
-    response = await async_client.post(url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "fox"})
-    assert response.json() == {"question": "Do you have a tail?", "options": [True, False]}
+    response = await async_client.post(
+        url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "fox"}
+    )
+    assert response.json() == {
+        "question": "Do you have a tail?",
+        "options": [True, False],
+    }
 
-    response = await async_client.post(url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "false"})
+    response = await async_client.post(
+        url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "false"}
+    )
     assert response.json() == {"data": ["sight", "smell", "sound"]}
 
 
@@ -72,17 +91,25 @@ async def test_interaction_operative_timeout() -> None:
         with pytest.raises(asyncio.TimeoutError) as e:
             await async_client.post(
                 url,
-                headers={"Content-Type": "application/json", "Conversation-Thread-Id": "123"},
+                headers={
+                    "Content-Type": "application/json",
+                    "Conversation-Thread-Id": "123",
+                },
                 json={"query": "wait"},
             )
-        assert str(e.value) == "Operative/Inquire tasks of session 123 have timed out after 1 sec."
+        assert (
+            str(e.value)
+            == "Operative/Inquire tasks of session 123 have timed out after 1 sec."
+        )
 
 
 @pytest.mark.asyncio
 async def test_unexpected_answer(async_client: AsyncClient) -> None:
     url = "interactive_animals"
     with pytest.raises(UnexpectedSessionStateError):
-        await async_client.post(url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "box"})
+        await async_client.post(
+            url, headers={"Conversation-Thread-Id": "123"}, json={"answer": "box"}
+        )
 
 
 @pytest.mark.asyncio

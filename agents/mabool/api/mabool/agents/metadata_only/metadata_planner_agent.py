@@ -1,6 +1,5 @@
 import ai2i.dcollection as dc
 from ai2i.di import DI
-
 from mabool.data_model.agent import AgentError, AgentInput, AgentOutput
 from mabool.data_model.specifications import Specifications
 from mabool.infra.operatives import (
@@ -27,7 +26,9 @@ class MetadataPlannerAgent(Operative[MetadataPlannerInput, AgentOutput, None]):
         self,
         state: None,
         inputs: MetadataPlannerInput,
-        dcf: dc.DocumentCollectionFactory = DI.requires(dc_deps.round_doc_collection_factory),
+        dcf: dc.DocumentCollectionFactory = DI.requires(
+            dc_deps.round_doc_collection_factory
+        ),
     ) -> tuple[None, OperativeResponse[AgentOutput]]:
         specifications = inputs.specification
         try:
@@ -35,15 +36,7 @@ class MetadataPlannerAgent(Operative[MetadataPlannerInput, AgentOutput, None]):
             op = op.build(dcf)
             docs = await op()
             return None, CompleteResponse(
-                data=AgentOutput(
-                    doc_collection=docs,
-                    response_text="",
-                )
+                data=AgentOutput(doc_collection=docs, response_text="")
             )
         except Exception as e:
-            return None, VoidResponse(
-                error=AgentError(
-                    type="other",
-                    message=str(e),
-                )
-            )
+            return None, VoidResponse(error=AgentError(type="other", message=str(e)))

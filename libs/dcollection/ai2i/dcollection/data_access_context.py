@@ -3,12 +3,11 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, Awaitable, Protocol, Sequence, runtime_checkable
 
+from ai2i.dcollection.external_api.dense.vespa import VespaRetriever
+from ai2i.dcollection.interface.document import DocumentFieldName
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.fields import FieldInfo
 from semanticscholar import AsyncSemanticScholar
-
-from ai2i.dcollection.external_api.dense.vespa import VespaRetriever
-from ai2i.dcollection.interface.document import DocumentFieldName
 
 type EntityId = str
 
@@ -21,10 +20,7 @@ type ComputationId = FunctionCodeId | CodeIdOfPartialFunction
 @runtime_checkable
 class SubsetCacheInterface(Protocol):
     def __init__(
-        self,
-        ttl: int,
-        is_enabled: bool = True,
-        force_deterministic: bool = False,
+        self, ttl: int, is_enabled: bool = True, force_deterministic: bool = False
     ) -> None: ...
 
     async def fetch_async_data[DFN: str](
@@ -46,7 +42,12 @@ class SubsetCacheInterface(Protocol):
 
 
 class FieldRequirements[DFN: str]:
-    def __init__(self, field: DFN, required_fields: Sequence[DFN] | None, skip_cache: bool = False) -> None:
+    def __init__(
+        self,
+        field: DFN,
+        required_fields: Sequence[DFN] | None,
+        skip_cache: bool = False,
+    ) -> None:
         self.field = field
         self.required_fields = required_fields or []
         self.skip_cache = skip_cache
@@ -54,15 +55,16 @@ class FieldRequirements[DFN: str]:
 
 class QueryFnSansContext[DFN: str](Protocol):
     def __call__(
-        self,
-        entities: Sequence[DynamicallyLoadedEntity[DFN]],
-        fields: list[DFN],
+        self, entities: Sequence[DynamicallyLoadedEntity[DFN]], fields: list[DFN]
     ) -> Awaitable[list[DynamicallyLoadedEntity[DFN]]]: ...
 
 
 class Fuser[DFN: str](Protocol):
     def __call__(
-        self, fuse_to: DynamicallyLoadedEntity[DFN], fuse_from: DynamicallyLoadedEntity[DFN], field: DFN
+        self,
+        fuse_to: DynamicallyLoadedEntity[DFN],
+        fuse_from: DynamicallyLoadedEntity[DFN],
+        field: DFN,
     ) -> None: ...
 
 
@@ -76,7 +78,10 @@ class Entity(BaseModel):
 
 class DocumentFieldLoader[D: Entity](Protocol):
     async def __call__(
-        self, entities: Sequence[D], fields: Sequence[DocumentFieldName], context: DocumentCollectionContext
+        self,
+        entities: Sequence[D],
+        fields: Sequence[DocumentFieldName],
+        context: DocumentCollectionContext,
     ) -> Sequence[D]: ...
 
 
@@ -136,7 +141,9 @@ class DynamicField(FieldInfo):
 
 
 class DynamicallyLoadedEntity[DFN: str](Entity):
-    dynamic_fields: dict[DFN | str, DynamicField] = Field(default_factory=dict, exclude=True)
+    dynamic_fields: dict[DFN | str, DynamicField] = Field(
+        default_factory=dict, exclude=True
+    )
 
     @abstractmethod
     def is_loaded(self, field_name: DFN | str) -> bool: ...
@@ -144,10 +151,16 @@ class DynamicallyLoadedEntity[DFN: str](Entity):
     @abstractmethod
     def clear_loaded_field(self, field_name: DFN | str) -> None: ...
 
-    def get_dynamic_field_computation_id(self, field_name: DFN | str) -> ComputationId | None:
+    def get_dynamic_field_computation_id(
+        self, field_name: DFN | str
+    ) -> ComputationId | None:
         # TODO: does it need to include fields not in dynamic_fields?
         entity_field = self.dynamic_fields.get(field_name)
-        if entity_field and isinstance(entity_field, DynamicField) and entity_field.extra:
+        if (
+            entity_field
+            and isinstance(entity_field, DynamicField)
+            and entity_field.extra
+        ):
             return entity_field.computation_id
         return None
 

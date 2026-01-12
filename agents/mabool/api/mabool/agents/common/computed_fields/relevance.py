@@ -27,9 +27,6 @@ from ai2i.dcollection import (
     RelevanceJudgement,
 )
 from ai2i.di import DI
-from pydantic import BaseModel, create_model
-from tenacity import stop_after_attempt
-
 from mabool.agents.common.computed_fields.relevance_types import (
     RELEVANCE_LABEL_TO_SCORE,
     DocumentRelevanceInput,
@@ -43,6 +40,8 @@ from mabool.data_model.config import cfg_schema
 from mabool.utils import tracing_deps
 from mabool.utils.llm_utils import get_api_key_for_model
 from mabool.utils.metrics import Metrics
+from pydantic import BaseModel, create_model
+from tenacity import stop_after_attempt
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +74,16 @@ def relevance_judgement_field(
 ) -> BatchComputedField[RelevanceJudgement]:
     return BatchComputedField[RelevanceJudgement](
         field_name=field_name,
-        computation_func=partial(_load_relevance_judgement, relevance_criteria=relevance_criteria),
-        required_fields=["markdown", "title", "abstract", "snippets", "citation_contexts"],
+        computation_func=partial(
+            _load_relevance_judgement, relevance_criteria=relevance_criteria
+        ),
+        required_fields=[
+            "markdown",
+            "title",
+            "abstract",
+            "snippets",
+            "citation_contexts",
+        ],
     )
 
 
@@ -96,14 +103,15 @@ async def _load_relevance_judgement(
         llm_results, entities, relevance_criteria, metrics
     )
 
-    ordered_results = _to_original_entities_order(entities, judgements_by_id, failed_docs_errors)
+    ordered_results = _to_original_entities_order(
+        entities, judgements_by_id, failed_docs_errors
+    )
 
     return ordered_results
 
 
 async def _judge_documents_relevance(
-    documents: Sequence[Document],
-    relevance_criteria: RelevanceCriteria,
+    documents: Sequence[Document], relevance_criteria: RelevanceCriteria
 ) -> list[LLMJudgementResult | Exception]:
     criteria_list = relevance_criteria.to_flat_criteria(include_nice_to_have=False)
     if not criteria_list:
@@ -127,7 +135,11 @@ def _prepare_documents_for_llm(
         {
             "document": doc["markdown"],
             "criteria": json.dumps(
-                [{"name": criterion.name, "description": criterion.description} for criterion in criteria], indent=2
+                [
+                    {"name": criterion.name, "description": criterion.description}
+                    for criterion in criteria
+                ],
+                indent=2,
             ),
             "doc_id": doc["corpus_id"],
         }
@@ -135,13 +147,17 @@ def _prepare_documents_for_llm(
     ]
 
 
-def _create_relevance_judgement_chain(criteria: list[RelevanceCriterion]) -> ChainComputation:
+def _create_relevance_judgement_chain(
+    criteria: list[RelevanceCriterion],
+) -> ChainComputation:
     relevance_result_type = _create_dynamic_judgement_result_type(criteria)
 
     judge_relevance = (
         define_chat_llm_call(
             [
-                system_message(relevance_criteria_judgement_prompt_with_relevant_snippets_after),
+                system_message(
+                    relevance_criteria_judgement_prompt_with_relevant_snippets_after
+                ),
                 user_message("{{document}}"),
             ],
             format="mustache",
@@ -155,24 +171,32 @@ def _create_relevance_judgement_chain(criteria: list[RelevanceCriterion]) -> Cha
     return judge_relevance
 
 
-def _create_dynamic_judgement_result_type(criteria: list[RelevanceCriterion]) -> type[BaseModel]:
-    fields: dict[str, Any] = {criterion.name: (RelevanceCriterionJudgementValue, ...) for criterion in criteria}
+def _create_dynamic_judgement_result_type(
+    criteria: list[RelevanceCriterion],
+) -> type[BaseModel]:
+    fields: dict[str, Any] = {
+        criterion.name: (RelevanceCriterionJudgementValue, ...)
+        for criterion in criteria
+    }
     criteria_model = create_model("CriteriaResult", **fields)
 
     return create_model(
         "RelevanceJudgementResult",
-        **{
-            "criteria": (criteria_model, ...),
-            "relevance_summary": (str | None, ...),
-        },
+        **{"criteria": (criteria_model, ...), "relevance_summary": (str | None, ...)},
     )
 
 
 def _extract_llm_response(
-    input_and_response: tuple[DocumentRelevanceInput, tuple[BaseModel, ResponseMetadata]],
+    input_and_response: tuple[
+        DocumentRelevanceInput, tuple[BaseModel, ResponseMetadata]
+    ],
 ) -> LLMJudgementResult:
     input_data, (response_model, metadata) = input_and_response
-    model_name = metadata.get("model_name") or metadata.get("model_version") or "unspecified model"
+    model_name = (
+        metadata.get("model_name")
+        or metadata.get("model_version")
+        or "unspecified model"
+    )
 
     return {
         "doc_id": input_data["doc_id"],
@@ -184,7 +208,10 @@ def _extract_llm_response(
 async def _execute_llm_judgements(
     inputs: list[DocumentRelevanceInput], judge_relevance_chain: ChainComputation
 ) -> list[LLMJudgementResult | Exception]:
-    llm_model = LLMModel.from_name(config_value(cfg_schema.relevance_judgement.relevance_model_name), temperature=0.0)
+    llm_model = LLMModel.from_name(
+        config_value(cfg_schema.relevance_judgement.relevance_model_name),
+        temperature=0.0,
+    )
     endpoint = define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
@@ -237,7 +264,9 @@ def _process_llm_results_with_failures(
     return judgements_by_id, failed_docs_errors
 
 
-def _convert_to_relevance_scores(results: list[LLMJudgementResult], metrics: Metrics) -> RelevanceScores:
+def _convert_to_relevance_scores(
+    results: list[LLMJudgementResult], metrics: Metrics
+) -> RelevanceScores:
     judgements_by_doc: dict[CorpusId, list[dict[str, Any]]] = {}
     summaries_by_doc: dict[CorpusId, str | None] = {}
     models_by_doc: dict[CorpusId, str] = {}
@@ -280,9 +309,9 @@ def _to_original_entities_order(
             results.append(failed_doc_errors[entity.corpus_id])
         else:
             judgement = judgements_by_id.get(entity.corpus_id)
-            assert judgement is not None, (
-                f"Document {entity.corpus_id} not found in judgements_by_id but also not in failed_doc_ids"
-            )
+            assert (
+                judgement is not None
+            ), f"Document {entity.corpus_id} not found in judgements_by_id but also not in failed_doc_ids"
             results.append(judgement)
 
     return results
@@ -301,17 +330,25 @@ def _try_create_document_judgement(
         criterion_judgements = _build_relevance_criteria_judgements(doc, judgement_data)
         if criterion_judgements is None:
             metrics.relevance_judgement_failures += 1
-            return _create_doc_loading_error(doc_id, "Failed to build criterion judgements")
+            return _create_doc_loading_error(
+                doc_id, "Failed to build criterion judgements"
+            )
 
-        validation_error = _validate_required_criteria(doc_id, criterion_judgements, relevance_criteria, metrics)
+        validation_error = _validate_required_criteria(
+            doc_id, criterion_judgements, relevance_criteria, metrics
+        )
         if validation_error:
             return validation_error
 
-        relevance_score = _compute_document_relevance_score(doc_id, criterion_judgements, relevance_criteria, metrics)
+        relevance_score = _compute_document_relevance_score(
+            doc_id, criterion_judgements, relevance_criteria, metrics
+        )
         if isinstance(relevance_score, DocLoadingError):
             return relevance_score
 
-        return _build_relevance_judgement(doc, scores, criterion_judgements, relevance_score)
+        return _build_relevance_judgement(
+            doc, scores, criterion_judgements, relevance_score
+        )
 
     except Exception as e:
         metrics.relevance_judgement_failures += 1
@@ -330,7 +367,8 @@ def _validate_required_criteria(
         return None
 
     required_criteria_names = [
-        criterion.name for criterion in relevance_criteria.to_flat_criteria(include_nice_to_have=False)
+        criterion.name
+        for criterion in relevance_criteria.to_flat_criteria(include_nice_to_have=False)
     ]
     judgement_criteria_names = [criterion.name for criterion in criterion_judgements]
 
@@ -340,7 +378,9 @@ def _validate_required_criteria(
             f"Required relevance criteria not found for document {doc_id}. Skipping. "
             f"Required criteria: {required_criteria_names}. Judged criteria: {judgement_criteria_names}"
         )
-        return _create_doc_loading_error(doc_id, "Required relevance criteria not found")
+        return _create_doc_loading_error(
+            doc_id, "Required relevance criteria not found"
+        )
 
     return None
 
@@ -352,11 +392,17 @@ def _compute_document_relevance_score(
     metrics: Metrics,
 ) -> float | DocLoadingError:
     try:
-        return _calculate_relevance_criteria_score(relevance_criteria, criterion_judgements)
+        return _calculate_relevance_criteria_score(
+            relevance_criteria, criterion_judgements
+        )
     except Exception as e:
         metrics.relevance_judgement_failures += 1
-        logger.exception(f"Failed to calculate relevance criteria score for document {doc_id}. Skipping. {e}")
-        return _create_doc_loading_error(doc_id, f"Failed to calculate relevance score: {e}", e)
+        logger.exception(
+            f"Failed to calculate relevance criteria score for document {doc_id}. Skipping. {e}"
+        )
+        return _create_doc_loading_error(
+            doc_id, f"Failed to calculate relevance score: {e}", e
+        )
 
 
 def _build_relevance_judgement(
@@ -383,7 +429,9 @@ def _build_relevance_judgement(
 def _create_doc_loading_error(
     doc_id: CorpusId, reason: str, original_exception: Exception | None = None
 ) -> DocLoadingError:
-    return DocLoadingError(corpus_id=doc_id, original_exception=original_exception or Exception(reason))
+    return DocLoadingError(
+        corpus_id=doc_id, original_exception=original_exception or Exception(reason)
+    )
 
 
 def _build_relevance_criteria_judgements(
@@ -393,7 +441,9 @@ def _build_relevance_criteria_judgements(
         judgements = []
         for criterion in judgement_data:
             try:
-                relevant_snippets = find_relevant_snippet(doc, criterion["relevant_snippet"])
+                relevant_snippets = find_relevant_snippet(
+                    doc, criterion["relevant_snippet"]
+                )
             except Exception as e:
                 logger.exception(f"Failed to find relevant snippet: {e}")
                 relevant_snippets = None

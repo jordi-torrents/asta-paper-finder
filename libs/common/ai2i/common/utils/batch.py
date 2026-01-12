@@ -52,7 +52,9 @@ class BatchProcessor(Generic[A, B]):
                 elif isinstance(results, Sequence):
                     return results
                 else:
-                    raise TypeError("process_func must return Iterable, Awaitable[Iterable], or AsyncIterator")
+                    raise TypeError(
+                        "process_func must return Iterable, Awaitable[Iterable], or AsyncIterator"
+                    )
 
         batch_results = await custom_gather(
             *(process_batch(batch) for batch in batches),
@@ -101,7 +103,9 @@ async def batch_process(
     max_concurrency: int = 1000,
     force_deterministic: bool = False,
 ) -> Sequence[B]:
-    processor = BatchProcessor(items, batch_size, process_func, max_concurrency, force_deterministic)
+    processor = BatchProcessor(
+        items, batch_size, process_func, max_concurrency, force_deterministic
+    )
     return await processor.process()
 
 
@@ -110,19 +114,15 @@ Seq2IterFunc = Callable[Concatenate[Sequence[A], P], AsyncIterator[B]]
 
 
 def with_batch(
-    *,
-    batch_size: int,
-    max_concurrency: int,
-    force_deterministic: bool = False,
-) -> Callable[
-    [Seq2SeqFunc[A, P, B] | Seq2IterFunc[A, P, B]],
-    Seq2SeqFunc[A, P, B],
-]:
+    *, batch_size: int, max_concurrency: int, force_deterministic: bool = False
+) -> Callable[[Seq2SeqFunc[A, P, B] | Seq2IterFunc[A, P, B]], Seq2SeqFunc[A, P, B]]:
     def decorator(
         func: Seq2SeqFunc[A, P, B] | Seq2IterFunc[A, P, B],
     ) -> Seq2SeqFunc[A, P, B]:
         @wraps(func)
-        async def wrapper(items: Sequence[A], *args: P.args, **kwargs: P.kwargs) -> Sequence[B]:
+        async def wrapper(
+            items: Sequence[A], *args: P.args, **kwargs: P.kwargs
+        ) -> Sequence[B]:
             async def process_func(batch: Sequence[A]) -> Sequence[B]:
                 result = func(batch, *args, **kwargs)
                 if isinstance(result, AsyncIterator):
@@ -131,7 +131,9 @@ def with_batch(
                     return await result
                 return result
 
-            return await batch_process(items, batch_size, process_func, max_concurrency, force_deterministic)
+            return await batch_process(
+                items, batch_size, process_func, max_concurrency, force_deterministic
+            )
 
         return wrapper
 

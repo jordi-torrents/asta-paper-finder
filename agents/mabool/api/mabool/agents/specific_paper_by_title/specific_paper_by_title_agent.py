@@ -10,18 +10,12 @@ from ai2i.dcollection import (
     get_by_title_origin_query,
 )
 from ai2i.di import DI
-
-from mabool.agents.common.common import (
-    AgentState,
-    filter_by_author,
-)
+from mabool.agents.common.common import AgentState, filter_by_author
 from mabool.agents.common.utils import alog_args
-from mabool.agents.specific_paper_by_title.specific_paper_by_title_prompts import title_extraction
-from mabool.data_model.agent import (
-    AgentError,
-    AgentInput,
-    AgentOutput,
+from mabool.agents.specific_paper_by_title.specific_paper_by_title_prompts import (
+    title_extraction,
 )
+from mabool.data_model.agent import AgentError, AgentInput, AgentOutput
 from mabool.data_model.config import cfg_schema
 from mabool.infra.operatives import (
     CompleteResponse,
@@ -48,7 +42,8 @@ type SpecificPaperByTitleOutput = AgentOutput
 
 def get_default_endpoint() -> LLMEndpoint:
     llm_model = LLMModel.from_name(
-        config_value(cfg_schema.specific_paper_by_title_agent.llm_model_name), temperature=0.0
+        config_value(cfg_schema.specific_paper_by_title_agent.llm_model_name),
+        temperature=0.0,
     )
     return define_llm_endpoint(
         default_timeout=Timeouts.medium,
@@ -78,37 +73,53 @@ async def get_specific_paper_by_title(
 ) -> tuple[DocumentCollection, str]:
     extracted_title = None
     try:
-        extracted_title = await get_default_endpoint().execute(title_extraction).once(user_input)
+        extracted_title = (
+            await get_default_endpoint().execute(title_extraction).once(user_input)
+        )
     except Exception as e:
-        logger.warning(f"Failed extracting title from query, fallback to entire query's content: {e}")
+        logger.warning(
+            f"Failed extracting title from query, fallback to entire query's content: {e}"
+        )
 
     if not extracted_title:
         extracted_title = user_input
 
     search_results = await DC.from_s2_by_title(extracted_title, time_range, venues)
-    search_results = search_results.filter(lambda doc: _titles_match(doc.title, extracted_title))
+    search_results = search_results.filter(
+        lambda doc: _titles_match(doc.title, extracted_title)
+    )
 
     if authors:
-        search_results = search_results.filter(lambda doc: filter_by_author(authors, doc))
+        search_results = search_results.filter(
+            lambda doc: filter_by_author(authors, doc)
+        )
 
     return search_results, extracted_title
 
 
 class SpecificPaperByTitleAgent(
-    Operative[SpecificPaperByTitleInput, SpecificPaperByTitleOutput, SpecificPaperByTitleState]
+    Operative[
+        SpecificPaperByTitleInput, SpecificPaperByTitleOutput, SpecificPaperByTitleState
+    ]
 ):
     def register(self) -> None: ...
 
     @alog_args(log_function=logging.info)
     async def handle_operation(
         self, state: SpecificPaperByTitleState | None, inputs: SpecificPaperByTitleInput
-    ) -> tuple[SpecificPaperByTitleState | None, OperativeResponse[SpecificPaperByTitleOutput]]:
+    ) -> tuple[
+        SpecificPaperByTitleState | None, OperativeResponse[SpecificPaperByTitleOutput]
+    ]:
         try:
             search_results = DC.from_docs(
                 [
                     PaperFinderDocument(
                         corpus_id=corpus_id,
-                        origins=[get_by_title_origin_query(inputs.matched_title, inputs.time_range, inputs.venues)],
+                        origins=[
+                            get_by_title_origin_query(
+                                inputs.matched_title, inputs.time_range, inputs.venues
+                            )
+                        ],
                     )
                     for corpus_id in inputs.matched_corpus_ids
                 ]
@@ -118,8 +129,7 @@ class SpecificPaperByTitleAgent(
                     state,
                     CompleteResponse(
                         data=AgentOutput(
-                            response_text="",
-                            doc_collection=search_results,
+                            response_text="", doc_collection=search_results
                         )
                     ),
                 )
@@ -129,7 +139,7 @@ class SpecificPaperByTitleAgent(
                     AssignedField[float](
                         field_name="final_specific_paper_by_title_score",
                         assigned_values=[1.0] * len(search_results),
-                    ),
+                    )
                 ]
             )
 
@@ -138,5 +148,7 @@ class SpecificPaperByTitleAgent(
 
         return (
             state,
-            CompleteResponse(data=AgentOutput(response_text="", doc_collection=search_results)),
+            CompleteResponse(
+                data=AgentOutput(response_text="", doc_collection=search_results)
+            ),
         )

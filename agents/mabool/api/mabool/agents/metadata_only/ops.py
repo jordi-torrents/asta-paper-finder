@@ -11,12 +11,11 @@ from ai2i.config import config_value
 from ai2i.dcollection.interface.collection import BASIC_FIELDS, DocumentPredicate
 from ai2i.dcollection.interface.document import Author, ExtractedYearlyTimeRange
 from ai2i.di import DI
-from pydantic import BaseModel, PrivateAttr, model_validator
-from semanticscholar.Author import Author as S2Author
-
 from mabool.data_model.config import cfg_schema
 from mabool.data_model.rounds import RoundContext
 from mabool.utils import context_deps
+from pydantic import BaseModel, PrivateAttr, model_validator
+from semanticscholar.Author import Author as S2Author
 
 from . import high
 
@@ -28,7 +27,13 @@ my_mod_name = __name__.split(".")[-1]
 vcr_dir = runs_dir / "cassettes" / my_mod_name
 
 
-OPS_FIELDS = [*BASIC_FIELDS, "publication_venue", "citation_count", "publication_types", "fields_of_study"]
+OPS_FIELDS = [
+    *BASIC_FIELDS,
+    "publication_venue",
+    "citation_count",
+    "publication_types",
+    "fields_of_study",
+]
 
 
 R = TypeVar("R")
@@ -121,12 +126,18 @@ class FromS2ByAuthorByName(DocOp):
     author: str
 
     async def run(self) -> dc.DocumentCollection:
-        author_profiles = await self.factory.s2_client().search_author(query=self.author)
-        request_context: RoundContext | None = DI.get_dependency(context_deps.request_context)
+        author_profiles = await self.factory.s2_client().search_author(
+            query=self.author
+        )
+        request_context: RoundContext | None = DI.get_dependency(
+            context_deps.request_context
+        )
         by_author = await self.factory.from_s2_by_author(
             authors_profiles=[list(author_profiles)],
             limit=10_000,
-            inserted_before=request_context.inserted_before if request_context else None,
+            inserted_before=(
+                request_context.inserted_before if request_context else None
+            ),
         )
         return await by_author.with_fields(OPS_FIELDS)
 
@@ -137,12 +148,18 @@ class FromS2ByAuthorById(DocOp):
     async def run(self) -> dc.DocumentCollection:
         if not self.author.author_id:
             raise ValueError("Author must have an author_id.")
-        author_profile = S2Author(data={"authorId": self.author.author_id, "name": self.author.name})
-        request_context: RoundContext | None = DI.get_dependency(context_deps.request_context)
+        author_profile = S2Author(
+            data={"authorId": self.author.author_id, "name": self.author.name}
+        )
+        request_context: RoundContext | None = DI.get_dependency(
+            context_deps.request_context
+        )
         by_author = await self.factory.from_s2_by_author(
             authors_profiles=[[author_profile]],
             limit=10_000,
-            inserted_before=request_context.inserted_before if request_context else None,
+            inserted_before=(
+                request_context.inserted_before if request_context else None
+            ),
         )
         return await by_author.with_fields(OPS_FIELDS)
 
@@ -154,17 +171,23 @@ class FromS2ByTitle(DocOp):
 
     async def run(self) -> dc.DocumentCollection:
         candidates = await self.factory.from_s2_by_title(
-            query=self.name,
-            time_range=self.time_range,
-            venues=self.venues,
+            query=self.name, time_range=self.time_range, venues=self.venues
         )
         if candidates.documents:
             return candidates
-        request_context: RoundContext | None = DI.get_dependency(context_deps.request_context)
-        candidates = await self.factory.from_s2_search(
-            query=self.name, limit=10, inserted_before=request_context.inserted_before if request_context else None
+        request_context: RoundContext | None = DI.get_dependency(
+            context_deps.request_context
         )
-        results = candidates.filter(lambda doc: (doc.title or "").lower().startswith(self.name.lower() + ":"))
+        candidates = await self.factory.from_s2_search(
+            query=self.name,
+            limit=10,
+            inserted_before=(
+                request_context.inserted_before if request_context else None
+            ),
+        )
+        results = candidates.filter(
+            lambda doc: (doc.title or "").lower().startswith(self.name.lower() + ":")
+        )
         return await results.with_fields(OPS_FIELDS)
 
 
@@ -177,13 +200,19 @@ class FromS2Search(DocOp):
     @model_validator(mode="after")
     def _has_any(self) -> Self:
         if not any([self.time_range, self.venues]):
-            raise ValueError("At least one of 'time_range' or 'venues' must be provided.")
+            raise ValueError(
+                "At least one of 'time_range' or 'venues' must be provided."
+            )
         return self
 
     async def run(self) -> dc.DocumentCollection:
         if not self.time_range:
-            logger.warning("Searching by venue without a time range may surpass the 10k results limit.")
-        request_context: RoundContext | None = DI.get_dependency(context_deps.request_context)
+            logger.warning(
+                "Searching by venue without a time range may surpass the 10k results limit."
+            )
+        request_context: RoundContext | None = DI.get_dependency(
+            context_deps.request_context
+        )
         return await self.factory.from_s2_search(
             query="",
             limit=10_000,
@@ -192,7 +221,9 @@ class FromS2Search(DocOp):
             fields_of_study=self.fields_of_study,
             min_citations=self.min_citations,
             fields=OPS_FIELDS,
-            inserted_before=request_context.inserted_before if request_context else None,
+            inserted_before=(
+                request_context.inserted_before if request_context else None
+            ),
         )
 
 
@@ -213,7 +244,10 @@ class FilterCiting(DocOp):
         docs_to_cite = await self.to_cite()
         corpus_ids_to_cite = {doc.corpus_id for doc in docs_to_cite.documents}
         return docs_that_must_cite.filter(
-            lambda doc: any(str(ref.target_corpus_id) in corpus_ids_to_cite for ref in doc.references or [])
+            lambda doc: any(
+                str(ref.target_corpus_id) in corpus_ids_to_cite
+                for ref in doc.references or []
+            )
         )
 
 
@@ -225,9 +259,14 @@ class FilterCitedBy(DocOp):
         docs_that_must_be_cited = await self.source()
         docs_that_cite = await self.that_cite()
         corpus_ids_that_are_cited = {
-            str(ref.target_corpus_id) for doc in docs_that_cite.documents if doc.references for ref in doc.references
+            str(ref.target_corpus_id)
+            for doc in docs_that_cite.documents
+            if doc.references
+            for ref in doc.references
         }
-        return docs_that_must_be_cited.filter(lambda doc: doc.corpus_id in corpus_ids_that_are_cited)
+        return docs_that_must_be_cited.filter(
+            lambda doc: doc.corpus_id in corpus_ids_that_are_cited
+        )
 
 
 class GetAllReferences(DocOp):
@@ -236,7 +275,12 @@ class GetAllReferences(DocOp):
     async def run(self) -> dc.DocumentCollection:
         source = await self.source()
         source = await source.with_fields(["references"])
-        corpus_ids = {str(ref.target_corpus_id) for doc in source.documents if doc.references for ref in doc.references}
+        corpus_ids = {
+            str(ref.target_corpus_id)
+            for doc in source.documents
+            if doc.references
+            for ref in doc.references
+        }
         refs = self.factory.from_ids(corpus_ids=list(corpus_ids))
         return await refs.with_fields(OPS_FIELDS)
 
@@ -253,17 +297,23 @@ class GetAllCiting(DocOp):
 
     @override
     def build(self, factory: dc.DocumentCollectionFactory) -> Self:
-        max_concurrent = config_value(cfg_schema.metadata_planner_agent.ops_max_concurrency)
+        max_concurrent = config_value(
+            cfg_schema.metadata_planner_agent.ops_max_concurrency
+        )
         self._semaphore = asyncio.Semaphore(max_concurrent)
         return super().build(factory)
 
     async def task(self, doc: dc.Document) -> dc.DocumentCollection:
-        request_context: RoundContext | None = DI.get_dependency(context_deps.request_context)
+        request_context: RoundContext | None = DI.get_dependency(
+            context_deps.request_context
+        )
         async with self._semaphore:
             return await self.factory.from_s2_citing_papers(
                 corpus_id=doc.corpus_id,
                 total_limit=self.limit,
-                inserted_before=request_context.inserted_before if request_context else None,
+                inserted_before=(
+                    request_context.inserted_before if request_context else None
+                ),
             )
 
     async def run(self) -> dc.DocumentCollection:
@@ -279,14 +329,13 @@ class FindAuthorByName(AuthorOp):
     author: str
 
     async def run(self) -> AuthorsCollection:
-        author_profiles = await self.factory.s2_client().search_author(query=self.author)
+        author_profiles = await self.factory.s2_client().search_author(
+            query=self.author
+        )
         if not author_profiles:
             raise ValueError(f"No authors found for name: {self.author}")
         authors = [
-            Author(
-                author_id=profile.authorId,
-                name=profile.name,
-            )
+            Author(author_id=profile.authorId, name=profile.name)
             for profile in author_profiles
             if profile.authorId and profile.name
         ]
@@ -318,7 +367,9 @@ class ByAuthorsOfPapers(DocOp):
     @model_validator(mode="after")
     def no_all_authors_and_min_authors(self) -> Self:
         if self.all_authors and self.min_authors_of_papers is not None:
-            raise ValueError("Cannot use both 'all_authors' and 'min_authors_of_papers'.")
+            raise ValueError(
+                "Cannot use both 'all_authors' and 'min_authors_of_papers'."
+            )
         return self
 
     def make_filter(self, author_ids: set[str]) -> DocumentPredicate:
@@ -326,7 +377,9 @@ class ByAuthorsOfPapers(DocOp):
             assert self.min_authors_of_papers
             if not doc.authors:
                 return False
-            doc_author_ids = {author.author_id for author in doc.authors if author.author_id}
+            doc_author_ids = {
+                author.author_id for author in doc.authors if author.author_id
+            }
             authors_of_papers = doc_author_ids.intersection(author_ids)
             return len(authors_of_papers) >= self.min_authors_of_papers
 
@@ -334,12 +387,18 @@ class ByAuthorsOfPapers(DocOp):
 
     async def run(self) -> dc.DocumentCollection:
         authors_collection = await self.authors()
-        ops = [FromS2ByAuthorById(author=author) for author in authors_collection.authors]
+        ops = [
+            FromS2ByAuthorById(author=author) for author in authors_collection.authors
+        ]
         op_cls = Intersect if self.all_authors else Union
         op = op_cls(items=ops).build(self.factory)
         res = await op()
         if self.min_authors_of_papers:
-            author_ids = {author.author_id for author in authors_collection.authors if author.author_id}
+            author_ids = {
+                author.author_id
+                for author in authors_collection.authors
+                if author.author_id
+            }
             filter = self.make_filter(author_ids=author_ids)
             return res.filter(filter)
         else:
@@ -352,7 +411,9 @@ class FilterByMinTotalAuthors(DocOp):
 
     async def run(self) -> dc.DocumentCollection:
         source = await self.source()
-        return source.filter(lambda doc: len(doc.authors or []) >= self.min_total_authors)
+        return source.filter(
+            lambda doc: len(doc.authors or []) >= self.min_total_authors
+        )
 
 
 class FilterByMetadata(DocOp):
@@ -364,7 +425,9 @@ class FilterByMetadata(DocOp):
     publication_types: list[str] | None = None
     min_citations: int | None = None
 
-    def is_in_year_range(self, doc_year: int, year_range: ExtractedYearlyTimeRange) -> bool:
+    def is_in_year_range(
+        self, doc_year: int, year_range: ExtractedYearlyTimeRange
+    ) -> bool:
         if year_range.start:
             if doc_year < year_range.start:
                 return False
@@ -410,13 +473,16 @@ class FilterByMetadata(DocOp):
         if self.field_of_study:
             if not doc.fields_of_study:
                 return False
-            if self.field_of_study.lower() not in (fos.lower() for fos in doc.fields_of_study):
+            if self.field_of_study.lower() not in (
+                fos.lower() for fos in doc.fields_of_study
+            ):
                 return False
         if self.publication_types:
             if not doc.publication_types:
                 return False
             if not any(
-                pub_type.lower() in (pt.lower() for pt in self.publication_types) for pub_type in doc.publication_types
+                pub_type.lower() in (pt.lower() for pt in self.publication_types)
+                for pub_type in doc.publication_types
             ):
                 return False
         if self.min_citations is not None:
@@ -444,22 +510,37 @@ class FilterExclude(FilterByMetadata):
 
     async def run(self) -> dc.DocumentCollection:
         source = await self.source()
-        if any(getattr(self, field) is not None for field in FilterByMetadata.model_fields if field != "source"):
+        if any(
+            getattr(self, field) is not None
+            for field in FilterByMetadata.model_fields
+            if field != "source"
+        ):
             source = source.filter(self.filter)
         if self.author:
             authors = await self.author()
-            author_ids = {author.author_id for author in authors.authors if author.author_id}
-            source = source.filter(lambda doc: not any(author.author_id in author_ids for author in doc.authors or []))
+            author_ids = {
+                author.author_id for author in authors.authors if author.author_id
+            }
+            source = source.filter(
+                lambda doc: not any(
+                    author.author_id in author_ids for author in doc.authors or []
+                )
+            )
         if self.citing:
             citing_docs = await self.citing()
             corpus_ids_to_exclude = {doc.corpus_id for doc in citing_docs.documents}
             source = source.filter(
-                lambda doc: not any(str(ref.target_corpus_id) in corpus_ids_to_exclude for ref in doc.references or [])
+                lambda doc: not any(
+                    str(ref.target_corpus_id) in corpus_ids_to_exclude
+                    for ref in doc.references or []
+                )
             )
         if self.cited_by:
             cited_by_docs = await self.cited_by()
             corpus_ids_to_exclude = {doc.corpus_id for doc in cited_by_docs.documents}
-            source = source.filter(lambda doc: doc.corpus_id not in corpus_ids_to_exclude)
+            source = source.filter(
+                lambda doc: doc.corpus_id not in corpus_ids_to_exclude
+            )
         return source
 
 
@@ -472,4 +553,7 @@ class FilterByHighlyCited(DocOp):
         threshold = high.highly_cited_threshold(citation_counts)
         if threshold is None:
             return self.factory.empty()
-        return source.filter(lambda doc: doc.citation_count is not None and doc.citation_count >= threshold)
+        return source.filter(
+            lambda doc: doc.citation_count is not None
+            and doc.citation_count >= threshold
+        )

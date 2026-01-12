@@ -2,16 +2,16 @@ import logging
 
 from ai2i.chain import LLMModel, Timeouts, define_llm_endpoint
 from ai2i.config import config_value
-from ai2i.dcollection import BASIC_FIELDS, DocumentCollectionSortDef, ExtractedYearlyTimeRange
+from ai2i.dcollection import (
+    BASIC_FIELDS,
+    DocumentCollectionSortDef,
+    ExtractedYearlyTimeRange,
+)
 from ai2i.di import DI
-from pydantic import Field
-
 from mabool.agents.broad_search_by_keyword.broad_search_by_keyword_prompts import (
     broad_search,
 )
-from mabool.agents.common.common import (
-    AgentState,
-)
+from mabool.agents.common.common import AgentState
 from mabool.agents.common.computed_fields.relevance import relevance_judgement_field
 from mabool.agents.common.domain_utils import get_fields_of_study_filter_from_domains
 from mabool.agents.common.relevance_judgement_utils import get_relevant_docs
@@ -34,12 +34,15 @@ from mabool.infra.operatives import (
 )
 from mabool.utils.dc import DC
 from mabool.utils.llm_utils import get_api_key_for_model
+from pydantic import Field
 
 logger = logging.getLogger(__name__)
 
 
 async def suggest_retrieval_query(paper_description: str) -> str:
-    llm_model = LLMModel.from_name(config_value(cfg_schema.broad_search_by_keyword_agent.formulation_model_name))
+    llm_model = LLMModel.from_name(
+        config_value(cfg_schema.broad_search_by_keyword_agent.formulation_model_name)
+    )
     endpoint = define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
@@ -60,14 +63,18 @@ BroadSearchByKeywordOutput = AgentOutput
 
 
 class BroadSearchByKeywordAgent(
-    Operative[BroadSearchByKeywordInput, BroadSearchByKeywordOutput, BroadSearchByKeywordState]
+    Operative[
+        BroadSearchByKeywordInput, BroadSearchByKeywordOutput, BroadSearchByKeywordState
+    ]
 ):
     def register(self) -> None: ...
 
     @alog_args(log_function=logging.info)
     async def handle_operation(
         self, state: BroadSearchByKeywordState | None, inputs: BroadSearchByKeywordInput
-    ) -> tuple[BroadSearchByKeywordState | None, OperativeResponse[BroadSearchByKeywordOutput]]:
+    ) -> tuple[
+        BroadSearchByKeywordState | None, OperativeResponse[BroadSearchByKeywordOutput]
+    ]:
         state = state or BroadSearchByKeywordState(checkpoint=DC.empty())
         response = await self.search(
             inputs.content_query,
@@ -88,12 +95,14 @@ class BroadSearchByKeywordAgent(
             case VoidResponse():
                 return None, VoidResponse(
                     error=AgentError(
-                        type="other", message=f"BroadSearchByKeywordAgent failed to respond; {response.error.message}"
+                        type="other",
+                        message=f"BroadSearchByKeywordAgent failed to respond; {response.error.message}",
                     )
                 )
             case PartialResponse():
                 return BroadSearchByKeywordState(
-                    checkpoint=response.data.doc_collection, search_iteration=state.search_iteration + 1
+                    checkpoint=response.data.doc_collection,
+                    search_iteration=state.search_iteration + 1,
                 ), PartialResponse(
                     data=BroadSearchByKeywordOutput(
                         doc_collection=response.data.doc_collection,
@@ -110,7 +119,8 @@ class BroadSearchByKeywordAgent(
                 )
             case CompleteResponse():
                 return BroadSearchByKeywordState(
-                    checkpoint=response.data.doc_collection, search_iteration=state.search_iteration + 1
+                    checkpoint=response.data.doc_collection,
+                    search_iteration=state.search_iteration + 1,
                 ), CompleteResponse(
                     data=BroadSearchByKeywordOutput(
                         doc_collection=response.data.doc_collection,
@@ -144,7 +154,9 @@ class BroadSearchByKeywordAgent(
             # Take `results_limit` times some factor, as later we will take top `results_limit`
             # results after sorting by citation count and/or year
 
-            limit = config_value(cfg_schema.broad_search_by_keyword_agent.results_limit) * config_value(
+            limit = config_value(
+                cfg_schema.broad_search_by_keyword_agent.results_limit
+            ) * config_value(
                 cfg_schema.broad_search_by_keyword_agent.extra_results_factor
             )
 
@@ -169,14 +181,22 @@ class BroadSearchByKeywordAgent(
             search_results = await add_weighted_sort_score(search_results, sort_prefs)
 
             search_results = search_results.sorted(
-                [DocumentCollectionSortDef(field_name="weighted_sort_score", order="desc")]
+                [
+                    DocumentCollectionSortDef(
+                        field_name="weighted_sort_score", order="desc"
+                    )
+                ]
             ).take(config_value(cfg_schema.broad_search_by_keyword_agent.results_limit))
 
-            search_results = await DC.from_docs(search_results.documents).with_fields(BASIC_FIELDS)
+            search_results = await DC.from_docs(search_results.documents).with_fields(
+                BASIC_FIELDS
+            )
         else:
             search_results = await DC.from_s2_search(
                 query=query,
-                limit=config_value(cfg_schema.broad_search_by_keyword_agent.results_limit),
+                limit=config_value(
+                    cfg_schema.broad_search_by_keyword_agent.results_limit
+                ),
                 search_iteration=search_iteration,
                 time_range=time_range,
                 venues=venues,
@@ -184,7 +204,13 @@ class BroadSearchByKeywordAgent(
             )
 
         if apply_relevance_judgement:
-            search_results = await search_results.with_fields([relevance_judgement_field(relevance_criteria)])
+            search_results = await search_results.with_fields(
+                [relevance_judgement_field(relevance_criteria)]
+            )
             search_results = get_relevant_docs(search_results)
 
-        return CompleteResponse(data=BroadSearchByKeywordOutput(response_text="", doc_collection=search_results))
+        return CompleteResponse(
+            data=BroadSearchByKeywordOutput(
+                response_text="", doc_collection=search_results
+            )
+        )

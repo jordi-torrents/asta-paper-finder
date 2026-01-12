@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from unittest.mock import Mock
 
 import pytest
-from fastapi.requests import Request
-
 from ai2i.config import with_config_overrides
 from ai2i.di.app_context import ApplicationContext, Module
 from ai2i.di.factory.app_context import create_app_context
@@ -17,6 +15,7 @@ from ai2i.di.interface import builtin_deps
 from ai2i.di.interface.errors import OutOfScopeDependencyError, RoundStorageError
 from ai2i.di.interface.gateway import DI
 from ai2i.di.interface.models import RequestAndBody, RoundId, TurnId
+from fastapi.requests import Request
 
 
 @pytest.fixture
@@ -46,7 +45,9 @@ async def app_ctx_and_module() -> tuple[ApplicationContext, Module]:
 
 
 @pytest.fixture(scope="function")
-async def app_ctx(app_ctx_and_module: tuple[ApplicationContext, Module]) -> ApplicationContext:
+async def app_ctx(
+    app_ctx_and_module: tuple[ApplicationContext, Module],
+) -> ApplicationContext:
     return app_ctx_and_module[0]
 
 
@@ -81,7 +82,12 @@ async def test_simple_singleton_scoping(
 
 
 async def test_simple_request_scoping(
-    app_ctx: ApplicationContext, module: Module, some_value: str, some_name: str, some_value2: str, some_name2: str
+    app_ctx: ApplicationContext,
+    module: Module,
+    some_value: str,
+    some_name: str,
+    some_value2: str,
+    some_name2: str,
 ) -> None:
     mock_request_and_body: RequestAndBody = Mock()
 
@@ -94,7 +100,9 @@ async def test_simple_request_scoping(
         return MyValue(some_value)
 
     @module.provides(scope="request", name=some_name2)
-    async def request_value(request: RequestAndBody = DI.requires(builtin_deps.request)) -> MyValue:
+    async def request_value(
+        request: RequestAndBody = DI.requires(builtin_deps.request),
+    ) -> MyValue:
         assert request == mock_request_and_body
         return MyValue(some_value2)
 
@@ -126,7 +134,12 @@ async def test_simple_request_scoping(
 
 
 async def test_request_scope_with_sub_task(
-    app_ctx: ApplicationContext, module: Module, some_value: str, some_name: str, some_value2: str, some_name2: str
+    app_ctx: ApplicationContext,
+    module: Module,
+    some_value: str,
+    some_name: str,
+    some_value2: str,
+    some_name2: str,
 ) -> None:
     mock_request_and_body: RequestAndBody = Mock()
 
@@ -139,7 +152,9 @@ async def test_request_scope_with_sub_task(
         return MyValue(some_value)
 
     @module.provides(scope="request", name=some_name2)
-    async def request_value(request: RequestAndBody = DI.requires(builtin_deps.request)) -> MyValue:
+    async def request_value(
+        request: RequestAndBody = DI.requires(builtin_deps.request),
+    ) -> MyValue:
         assert request == mock_request_and_body
         return MyValue(some_value2)
 
@@ -174,7 +189,12 @@ async def test_request_scope_with_sub_task(
 
 
 async def test_simple_turn_scoping(
-    app_ctx: ApplicationContext, module: Module, some_value: str, some_name: str, some_value2: str, some_name2: str
+    app_ctx: ApplicationContext,
+    module: Module,
+    some_value: str,
+    some_name: str,
+    some_value2: str,
+    some_name2: str,
 ) -> None:
     mock_turn_id: TurnId = Mock()
 
@@ -187,7 +207,9 @@ async def test_simple_turn_scoping(
         return MyValue(some_value)
 
     @module.provides(scope="turn", name=some_name2)
-    async def turn_value(turn_id: TurnId = DI.requires(builtin_deps.turn_id)) -> MyValue:
+    async def turn_value(
+        turn_id: TurnId = DI.requires(builtin_deps.turn_id),
+    ) -> MyValue:
         assert turn_id == mock_turn_id
         return MyValue(some_value2)
 
@@ -219,7 +241,12 @@ async def test_simple_turn_scoping(
 
 
 async def test_turn_scope_with_sub_task(
-    app_ctx: ApplicationContext, module: Module, some_value: str, some_name: str, some_value2: str, some_name2: str
+    app_ctx: ApplicationContext,
+    module: Module,
+    some_value: str,
+    some_name: str,
+    some_value2: str,
+    some_name2: str,
 ) -> None:
     mock_turn_id: Request = Mock()
 
@@ -232,7 +259,9 @@ async def test_turn_scope_with_sub_task(
         return MyValue(some_value)
 
     @module.provides(scope="turn", name=some_name2)
-    async def request_value(request: TurnId = DI.requires(builtin_deps.turn_id)) -> MyValue:
+    async def request_value(
+        request: TurnId = DI.requires(builtin_deps.turn_id),
+    ) -> MyValue:
         assert request == mock_turn_id
         return MyValue(some_value2)
 
@@ -267,7 +296,12 @@ async def test_turn_scope_with_sub_task(
 
 
 async def test_simple_round_scoping(
-    app_ctx: ApplicationContext, module: Module, some_value: str, some_name: str, some_value2: str, some_name2: str
+    app_ctx: ApplicationContext,
+    module: Module,
+    some_value: str,
+    some_name: str,
+    some_value2: str,
+    some_name2: str,
 ) -> None:
     mock_round_id: RoundId = Mock()
 
@@ -280,7 +314,9 @@ async def test_simple_round_scoping(
         return MyValue(some_value)
 
     @module.provides(scope="round", name=some_name2)
-    async def round_value(round_id: RoundId = DI.requires(builtin_deps.round_id)) -> MyValue:
+    async def round_value(
+        round_id: RoundId = DI.requires(builtin_deps.round_id),
+    ) -> MyValue:
         assert round_id == mock_round_id
         return MyValue(some_value2)
 
@@ -313,7 +349,12 @@ async def test_simple_round_scoping(
 
 
 async def test_round_scoping_hibernate(
-    app_ctx: ApplicationContext, module: Module, some_value: str, some_name: str, some_value2: str, some_name2: str
+    app_ctx: ApplicationContext,
+    module: Module,
+    some_value: str,
+    some_name: str,
+    some_value2: str,
+    some_name2: str,
 ) -> None:
     mock_round_id: RoundId = Mock()
     num_factory_calls = 0
@@ -327,7 +368,9 @@ async def test_round_scoping_hibernate(
         return MyValue(some_value)
 
     @module.provides(scope="round", name=some_name2)
-    async def round_value(round_id: RoundId = DI.requires(builtin_deps.round_id)) -> MyValue:
+    async def round_value(
+        round_id: RoundId = DI.requires(builtin_deps.round_id),
+    ) -> MyValue:
         nonlocal num_factory_calls
 
         assert round_id == mock_round_id
@@ -378,7 +421,12 @@ async def test_round_scoping_hibernate(
 
 @with_config_overrides(di={"round_scope_timeout": 0})
 async def test_round_scoping_timeout(
-    app_ctx: ApplicationContext, module: Module, some_value: str, some_name: str, some_value2: str, some_name2: str
+    app_ctx: ApplicationContext,
+    module: Module,
+    some_value: str,
+    some_name: str,
+    some_value2: str,
+    some_name2: str,
 ) -> None:
     mock_round_id: RoundId = Mock()
     num_factory_calls = 0
@@ -392,7 +440,9 @@ async def test_round_scoping_timeout(
         return MyValue(some_value)
 
     @module.provides(scope="round", name=some_name2)
-    async def round_value(round_id: RoundId = DI.requires(builtin_deps.round_id)) -> MyValue:
+    async def round_value(
+        round_id: RoundId = DI.requires(builtin_deps.round_id),
+    ) -> MyValue:
         nonlocal num_factory_calls
 
         assert round_id == mock_round_id
@@ -432,10 +482,7 @@ async def test_round_scoping_timeout(
 
 
 async def test_scopes_injection_from_parent_singleton_request(
-    app_ctx: ApplicationContext,
-    module: Module,
-    some_value: str,
-    some_value2: str,
+    app_ctx: ApplicationContext, module: Module, some_value: str, some_value2: str
 ) -> None:
     mock_request: Request = Mock()
 
@@ -456,20 +503,22 @@ async def test_scopes_injection_from_parent_singleton_request(
 
 
 async def test_scopes_injection_from_parent_round_request(
-    app_ctx: ApplicationContext,
-    module: Module,
-    some_value: str,
+    app_ctx: ApplicationContext, module: Module, some_value: str
 ) -> None:
     mock_request_and_body: Request = Mock()
     mock_round_id: RoundId = Mock()
 
     @module.provides(scope="request")
-    async def request_value(r: RequestAndBody = DI.requires(builtin_deps.request)) -> RequestAndBody:
+    async def request_value(
+        r: RequestAndBody = DI.requires(builtin_deps.request),
+    ) -> RequestAndBody:
         assert r == mock_request_and_body
         return r
 
     @module.provides(scope="round")
-    async def round_value(r: RequestAndBody = DI.requires(request_value)) -> tuple[RequestAndBody, str]:
+    async def round_value(
+        r: RequestAndBody = DI.requires(request_value),
+    ) -> tuple[RequestAndBody, str]:
         return (r, some_value)
 
     async with app_ctx.scopes.singleton.managed_scope():
@@ -481,8 +530,7 @@ async def test_scopes_injection_from_parent_round_request(
 
 
 async def test_get_application_context_as_dep(
-    app_ctx: ApplicationContext,
-    module: Module,
+    app_ctx: ApplicationContext, module: Module
 ) -> None:
     with pytest.raises(OutOfScopeDependencyError):
         DI.get_dependency(builtin_deps.application_context)
@@ -492,9 +540,7 @@ async def test_get_application_context_as_dep(
 
 
 async def test_require_application_context_as_transitive_dep(
-    app_ctx: ApplicationContext,
-    module: Module,
-    some_value: str,
+    app_ctx: ApplicationContext, module: Module, some_value: str
 ) -> None:
     @module.provides(scope="singleton")
     async def some_value_with_context(

@@ -3,9 +3,8 @@ from typing import TypedDict
 
 from ai2i.chain import Timeouts, define_prompt_llm_call
 from ai2i.dcollection import DocumentCollection
-from pydantic import BaseModel
-
 from mabool.agents.query_analyzer.query_analyzer import get_default_endpoint
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -43,16 +42,22 @@ combined_anchor_query = define_prompt_llm_call(
 )
 
 
-async def combine_content_query_with_anchors(content_query: str, anchor_docs: DocumentCollection) -> str:
+async def combine_content_query_with_anchors(
+    content_query: str, anchor_docs: DocumentCollection
+) -> str:
     if len(anchor_docs) == 0:
         return content_query
     try:
-        anchor_docs_markdown = "\n".join(anchor_docs.project(lambda doc: doc.markdown or ""))
+        anchor_docs_markdown = "\n".join(
+            anchor_docs.project(lambda doc: doc.markdown or "")
+        )
         endpoint = get_default_endpoint().timeout(Timeouts.medium)
         anchor_combined_query = await endpoint.execute(combined_anchor_query).once(
             {"query": content_query, "anchors_markdown": anchor_docs_markdown}
         )
         return anchor_combined_query.combined_query
     except Exception as e:
-        logger.exception(f"Failed to combine content query with anchor documents: {content_query}. Error: {e}")
+        logger.exception(
+            f"Failed to combine content query with anchor documents: {content_query}. Error: {e}"
+        )
         return content_query

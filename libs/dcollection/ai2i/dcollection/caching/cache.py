@@ -3,9 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple, Sequence
 
-from aiocache import Cache
-from aiocache.serializers import PickleSerializer
-
 from ai2i.common.utils.asyncio import custom_gather
 from ai2i.common.utils.value import ValueNotSet
 from ai2i.dcollection.data_access_context import (
@@ -15,16 +12,17 @@ from ai2i.dcollection.data_access_context import (
     QueryFnSansContext,
 )
 from ai2i.dcollection.interface.collection import DocLoadingError
+from aiocache import Cache
+from aiocache.serializers import PickleSerializer
 
 
 class SubsetCache:
     def __init__(
-        self,
-        ttl: int,
-        is_enabled: bool = True,
-        force_deterministic: bool = False,
+        self, ttl: int, is_enabled: bool = True, force_deterministic: bool = False
     ) -> None:
-        self.cache = Cache(Cache.MEMORY, serializer=PickleSerializer(), namespace="cache")
+        self.cache = Cache(
+            Cache.MEMORY, serializer=PickleSerializer(), namespace="cache"
+        )
         self.ttl = ttl
         self.is_enabled = is_enabled
         self.force_deterministic = force_deterministic
@@ -43,8 +41,12 @@ class SubsetCache:
 
         # Fetch data from cache.
         keys_lookup = CacheKeysLookup.build(entities, fields)
-        cached_values: list[CacheValue] = await self.cache.multi_get(keys_lookup.cacheable_keys)
-        cache_result = self._process_cache_results(entities, fields, keys_lookup, cached_values)
+        cached_values: list[CacheValue] = await self.cache.multi_get(
+            keys_lookup.cacheable_keys
+        )
+        cache_result = self._process_cache_results(
+            entities, fields, keys_lookup, cached_values
+        )
 
         # Fetch missing data from the query function.
         query_results: dict[EntityId, DynamicallyLoadedEntity[DFN]] = {}
@@ -81,7 +83,10 @@ class SubsetCache:
 
         cached_values_by_key = dict(
             zip(
-                ((key[0]["entity_id"], key[1]) for key in keys_lookup.cache_keys.values()),
+                (
+                    (key[0]["entity_id"], key[1])
+                    for key in keys_lookup.cache_keys.values()
+                ),
                 cached_values,
             )
         )
@@ -90,7 +95,9 @@ class SubsetCache:
         for entity in entities:
             field_values = {}
             for field_req in fields:
-                cached_value = cached_values_by_key.get((entity.entity_id, field_req.field))
+                cached_value = cached_values_by_key.get(
+                    (entity.entity_id, field_req.field)
+                )
                 if cached_value is not None:
                     field_values[field_req.field] = FieldValue(cached_value)
 
@@ -130,7 +137,9 @@ class SubsetCache:
                 for field in fields:
                     if hasattr(queried_entity, field):
                         query_result_value = getattr(queried_entity, field)
-                        if query_result_value is not None or not entity.is_loaded(field):
+                        if query_result_value is not None or not entity.is_loaded(
+                            field
+                        ):
                             setattr(entity, field, query_result_value)
 
         return result_entities
@@ -158,8 +167,12 @@ class SubsetCache:
         sorted_entities = sorted(fetched_entities, key=lambda e: e.entity_id)
 
         await custom_gather(
-            self._cache_assigned_values(sorted_entities, fields_to_query, keys_lookup, self.ttl),
-            self._cache_none_values(sorted_entities, fields_to_query, keys_lookup, self.ttl),
+            self._cache_assigned_values(
+                sorted_entities, fields_to_query, keys_lookup, self.ttl
+            ),
+            self._cache_none_values(
+                sorted_entities, fields_to_query, keys_lookup, self.ttl
+            ),
             force_deterministic=self.force_deterministic,
         )
 
@@ -177,7 +190,8 @@ class SubsetCache:
             )
             for field_name in sorted(fields_to_query)
             for entity in sorted_entities
-            if not isinstance(getattr(entity, field_name), DocLoadingError) and getattr(entity, field_name) is not None
+            if not isinstance(getattr(entity, field_name), DocLoadingError)
+            and getattr(entity, field_name) is not None
         ]
         if to_cache:
             await self.cache.multi_set(to_cache, ttl=ttl)
@@ -193,12 +207,15 @@ class SubsetCache:
             keys_lookup.lookup_key(entity.entity_id, field_name)
             for field_name in sorted(fields_to_query)
             for entity in sorted_entities
-            if not isinstance(getattr(entity, field_name), DocLoadingError) and getattr(entity, field_name) is None
+            if not isinstance(getattr(entity, field_name), DocLoadingError)
+            and getattr(entity, field_name) is None
         ]
         if none_keys:
             existing_values = await self.cache.multi_get(none_keys)
             none_values_to_cache = [
-                (key, ValueNotSet) for key, value in zip(none_keys, existing_values) if value is None
+                (key, ValueNotSet)
+                for key, value in zip(none_keys, existing_values)
+                if value is None
             ]
             if none_values_to_cache:
                 await self.cache.multi_set(none_values_to_cache, ttl=ttl)
@@ -220,7 +237,9 @@ class SubsetCache:
                 if hasattr(entity, field_req.field):
                     value = getattr(entity, field_req.field)
                     if value is not None:
-                        cache_key = keys_lookup.lookup_key(entity.entity_id, field_req.field)
+                        cache_key = keys_lookup.lookup_key(
+                            entity.entity_id, field_req.field
+                        )
                         to_cache.append((cache_key, value))
 
         if to_cache:
@@ -267,23 +286,21 @@ class CacheKeysLookup[DFN: str]:
             entity_id = entity.entity_id
             for field_req in fields:
                 required_fields = (
-                    entity.model_dump(include=set(str(rf) for rf in field_req.required_fields))
+                    entity.model_dump(
+                        include=set(str(rf) for rf in field_req.required_fields)
+                    )
                     if field_req.required_fields
                     else {}
                 )
 
-                computation_id = entity.get_dynamic_field_computation_id(field_req.field)
-                cache_dict = {
-                    "entity_id": entity_id,
-                    **required_fields,
-                }
+                computation_id = entity.get_dynamic_field_computation_id(
+                    field_req.field
+                )
+                cache_dict = {"entity_id": entity_id, **required_fields}
                 if computation_id is not None:
                     cache_dict["computation_hash"] = hash(computation_id)
 
-                cache_keys[(entity_id, field_req.field)] = (
-                    cache_dict,
-                    field_req.field,
-                )
+                cache_keys[(entity_id, field_req.field)] = (cache_dict, field_req.field)
 
         return cls(cache_keys=cache_keys)
 

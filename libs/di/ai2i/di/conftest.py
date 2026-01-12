@@ -3,13 +3,14 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
-
 from ai2i.config import application_config_ctx, load_conf
 
 
 @pytest.fixture(scope="function", autouse=True)
 def global_config() -> Iterator[None]:
-    with application_config_ctx(load_conf(Path(__file__).parent.parent.parent / "conf")):
+    with application_config_ctx(
+        load_conf(Path(__file__).parent.parent.parent / "conf")
+    ):
         yield None
 
 

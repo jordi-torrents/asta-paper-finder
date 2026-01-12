@@ -25,7 +25,9 @@ class ApplicationContext(TaskRunner):
     """
 
     @abstractmethod
-    def create_fresh_scopes_context(self, *, patched_instances: dict[str, Any]) -> None: ...
+    def create_fresh_scopes_context(
+        self, *, patched_instances: dict[str, Any]
+    ) -> None: ...
 
     @property
     @abstractmethod

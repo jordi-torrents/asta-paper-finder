@@ -12,8 +12,6 @@ from ai2i.dcollection import (
     s2_get_authors_by_name,
 )
 from ai2i.di import DI
-from semanticscholar.Author import Author
-
 from mabool.agents.broad_search_by_keyword.broad_search_by_keyword_agent import (
     suggest_retrieval_query,
 )
@@ -51,6 +49,7 @@ from mabool.utils import dc_deps
 from mabool.utils.asyncio import custom_gather
 from mabool.utils.dc import DC
 from mabool.utils.llm_utils import get_api_key_for_model
+from semanticscholar.Author import Author
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +76,9 @@ SearchByAuthorsState = AgentState
 SearchByAuthorsOutput = AgentOutput
 
 AUTHOR_PAGINATION = 5
-prefix = "Please specify which of the following you are interested in (out of {amount}):\n\n"
+prefix = (
+    "Please specify which of the following you are interested in (out of {amount}):\n\n"
+)
 author_candidate = '{idx}. <Author authorId="{id}">{name}</Author> - {count} papers, {h_index} h-index.'  # noqa: E501
 suffix = "\n\nPlease type the index of the author (can be an index also from previous responds)"
 next_suffix = ', or "next" otherwise.'
@@ -85,7 +86,9 @@ no_next_suffix = " as this is the last batch of authors."
 
 
 def get_default_endpoint() -> LLMEndpoint:
-    llm_model = LLMModel.from_name(config_value(cfg_schema.search_by_author_agent.llm_model_name))
+    llm_model = LLMModel.from_name(
+        config_value(cfg_schema.search_by_author_agent.llm_model_name)
+    )
     return define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
@@ -120,17 +123,25 @@ def get_venues_hint(venues: list[str] | None) -> str:
     return ""
 
 
-class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput, SearchByAuthorsState]):
+class SearchByAuthorsAgent(
+    Operative[SearchByAuthorsInput, SearchByAuthorsOutput, SearchByAuthorsState]
+):
     def register(self) -> None: ...
 
-    async def disambiguate_author(self, author_name: str, found_authors: list[Author]) -> list[Author]:
+    async def disambiguate_author(
+        self, author_name: str, found_authors: list[Author]
+    ) -> list[Author]:
         sorted_authors = sorted(
             found_authors,
             key=lambda a: (
                 # if more than just last/first name, check for exact match (case insensitive)
-                len(author_name.strip().split()) > 1 and a.name.lower() == author_name.lower(),
+                len(author_name.strip().split()) > 1
+                and a.name.lower() == author_name.lower(),
                 # check if all parts of the name are in the author name (to deprioritize initials)
-                all(name_part.lower() in a.name.lower().split() for name_part in author_name.split()),
+                all(
+                    name_part.lower() in a.name.lower().split()
+                    for name_part in author_name.split()
+                ),
                 int(a.hIndex),
                 int(a.paperCount),
             ),
@@ -142,12 +153,18 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
             or inquiry is None
             or len(sorted_authors) == 1
         ):
-            return sorted_authors[: config_value(cfg_schema.search_by_author_agent.consider_profiles_per_author)]
+            return sorted_authors[
+                : config_value(
+                    cfg_schema.search_by_author_agent.consider_profiles_per_author
+                )
+            ]
 
         for i in range(0, len(sorted_authors), AUTHOR_PAGINATION):
             not_last_batch = i + AUTHOR_PAGINATION < len(sorted_authors)
             cur_authors = sorted_authors[i : i + AUTHOR_PAGINATION]
-            options = [str(i + j + 1) for j in range(len(cur_authors))] + (["next"] if not_last_batch else [])
+            options = [str(i + j + 1) for j in range(len(cur_authors))] + (
+                ["next"] if not_last_batch else []
+            )
             formatted_candidates = [
                 author_candidate.format(
                     idx=i + j + 1,
@@ -165,7 +182,9 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
                 + (next_suffix if not_last_batch else no_next_suffix)
             )
 
-            inquire_response = await inquiry.ask(InquiryQuestion(question=formulated_question, options=options))
+            inquire_response = await inquiry.ask(
+                InquiryQuestion(question=formulated_question, options=options)
+            )
             try:
                 if inquire_response.answer == "next":
                     continue
@@ -173,7 +192,9 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
                 disambiguated_user_response = int(inquire_response.answer)
                 return [sorted_authors[disambiguated_user_response - 1]]
             except ValueError:
-                options_without_next = options[:-1] if "next" == options[-1] else options
+                options_without_next = (
+                    options[:-1] if "next" == options[-1] else options
+                )
                 disambiguated_user_response = (
                     await get_default_endpoint()
                     .execute(disambiguate_user_response)
@@ -193,21 +214,26 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
     async def get_authors_papers_by_s2_authors(
         self,
         authors: list[str],
-        doc_collection_factory: DocumentCollectionFactory = DI.requires(dc_deps.round_doc_collection_factory),
+        doc_collection_factory: DocumentCollectionFactory = DI.requires(
+            dc_deps.round_doc_collection_factory
+        ),
     ) -> DocumentCollection:
         # get top authors by paperCount per requested author
         top_authors = []
         for author in authors:
-            found_authors = await s2_get_authors_by_name(author, doc_collection_factory.context())
+            found_authors = await s2_get_authors_by_name(
+                author, doc_collection_factory.context()
+            )
             if not found_authors:
-                raise NoAuthorMatchedError(f"No author was found by this name: {author}")
+                raise NoAuthorMatchedError(
+                    f"No author was found by this name: {author}"
+                )
             top_authors.append(await self.disambiguate_author(author, found_authors))
 
         flat_authors = [a for author_profile in top_authors for a in author_profile]
 
         search_results = await DC.from_s2_by_author(
-            [flat_authors],
-            config_value(cfg_schema.s2_api.total_papers_limit),
+            [flat_authors], config_value(cfg_schema.s2_api.total_papers_limit)
         )
         if len(authors) > 1:
             # here we keep only the papers that are actually with all the authors,
@@ -217,9 +243,10 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
                 lambda doc: all(
                     [
                         len(
-                            {a.author_id for a in (doc.authors if doc.authors else [])}.intersection(
-                                {a.authorId for a in author_profiles}
-                            )
+                            {
+                                a.author_id
+                                for a in (doc.authors if doc.authors else [])
+                            }.intersection({a.authorId for a in author_profiles})
                         )
                         for author_profiles in top_authors
                     ]
@@ -239,14 +266,18 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
         reformulated_query = await suggest_retrieval_query(user_content_input)
         results = await DC.from_s2_search(
             query=" ".join([reformulated_query] + authors),
-            limit=config_value(cfg_schema.search_by_author_agent.relevance_judgements_quota),
+            limit=config_value(
+                cfg_schema.search_by_author_agent.relevance_judgements_quota
+            ),
             time_range=time_range,
             venues=venues,
             fields_of_study=get_fields_of_study_filter_from_domains(domains),
         )
 
         # filter results by author matches
-        results = results.filter(lambda doc: filter_by_author(authors, doc, keep_missing=False))
+        results = results.filter(
+            lambda doc: filter_by_author(authors, doc, keep_missing=False)
+        )
         return results
 
     def get_authors_papers_fast_and_naive_methods(
@@ -260,7 +291,9 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
         futures = []
 
         futures.append(
-            self.get_authors_papers_by_s2_relevance(authors, user_content_input, domains, time_range, venues)
+            self.get_authors_papers_by_s2_relevance(
+                authors, user_content_input, domains, time_range, venues
+            )
         )
 
         extra_hints = [
@@ -297,10 +330,7 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
             )
         ):
             results = await filter_docs_by_metadata(
-                results,
-                time_range,
-                venues,
-                keep_missing=False,
+                results, time_range, venues, keep_missing=False
             )
 
             if (
@@ -308,21 +338,29 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
                 and relevance_criteria is not None
                 and relevance_criteria.required_relevance_critieria
             ):
-                quota = config_value(cfg_schema.search_by_author_agent.relevance_judgements_quota)
+                quota = config_value(
+                    cfg_schema.search_by_author_agent.relevance_judgements_quota
+                )
                 if len(results.documents) > quota:
-                    results = await results.with_fields([rerank_score_field(relevance_criteria)])
-                    results = results.sorted([DocumentCollectionSortDef(field_name="rerank_score", order="desc")]).take(
-                        quota
+                    results = await results.with_fields(
+                        [rerank_score_field(relevance_criteria)]
                     )
-                results = await results.with_fields([relevance_judgement_field(relevance_criteria)])
+                    results = results.sorted(
+                        [
+                            DocumentCollectionSortDef(
+                                field_name="rerank_score", order="desc"
+                            )
+                        ]
+                    ).take(quota)
+                results = await results.with_fields(
+                    [relevance_judgement_field(relevance_criteria)]
+                )
                 results = get_relevant_docs(results)
         return results
 
     @alog_args(log_function=logging.info)
     async def handle_operation(
-        self,
-        state: SearchByAuthorsState | None,
-        inputs: SearchByAuthorsInput,
+        self, state: SearchByAuthorsState | None, inputs: SearchByAuthorsInput
     ) -> tuple[SearchByAuthorsState | None, OperativeResponse[SearchByAuthorsOutput]]:
         try:
             futures = []
@@ -352,7 +390,9 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
                     return (
                         state,
                         CompleteResponse(
-                            data=SearchByAuthorsOutput(response_text=response_text, doc_collection=DC.empty()),
+                            data=SearchByAuthorsOutput(
+                                response_text=response_text, doc_collection=DC.empty()
+                            )
                         ),
                     )
                 if isinstance(result_set, BaseException):
@@ -377,7 +417,9 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
 
             # here we assume its a specific query so we need to return only a few results
             if inputs.broad_or_specific == "specific":
-                results = results.take(config_value(cfg_schema.search_by_author_agent.limit_for_specific))
+                results = results.take(
+                    config_value(cfg_schema.search_by_author_agent.limit_for_specific)
+                )
 
             # NOTE - the results are not ordered in any meaningful way, sorting will be done by caller
 
@@ -386,5 +428,7 @@ class SearchByAuthorsAgent(Operative[SearchByAuthorsInput, SearchByAuthorsOutput
 
         return (
             state,
-            CompleteResponse(data=SearchByAuthorsOutput(response_text="", doc_collection=results)),
+            CompleteResponse(
+                data=SearchByAuthorsOutput(response_text="", doc_collection=results)
+            ),
         )

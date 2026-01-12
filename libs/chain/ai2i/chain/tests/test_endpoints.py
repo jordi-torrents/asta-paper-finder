@@ -2,13 +2,6 @@ import uuid
 from typing import TypedDict, cast
 
 import pytest
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage
-from langchain_core.prompt_values import StringPromptValue
-from langchain_core.runnables import RunnableLambda
-from pydantic import BaseModel, SecretStr
-from tenacity import RetryError, stop_after_attempt
-
 from ai2i.chain.builders import define_prompt_llm_call
 from ai2i.chain.computation import ChainComputation
 from ai2i.chain.endpoints import (
@@ -20,6 +13,12 @@ from ai2i.chain.endpoints import (
 )
 from ai2i.chain.models import LLMModel
 from ai2i.chain.tests.mocks import MockModelRunnable
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
+from langchain_core.prompt_values import StringPromptValue
+from langchain_core.runnables import RunnableLambda
+from pydantic import BaseModel, SecretStr
+from tenacity import RetryError, stop_after_attempt
 
 
 class SomeInput(TypedDict):
@@ -73,16 +72,16 @@ def test_endpoint_overrides() -> None:
 
 async def test_run(input_value: str, input_value2: str, api_key: SecretStr) -> None:
     call = define_prompt_llm_call(
-        "{input}",
-        input_type=SomeInput,
-        output_type=SomeResponse,
+        "{input}", input_type=SomeInput, output_type=SomeResponse
     ).map(lambda s: s.value)
 
     def _pass_through_model_factory(
         model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None
     ) -> BaseChatModel:
         def _internal(input: StringPromptValue) -> BaseMessage:
-            return BaseMessage(content=SomeResponse(value=input.text).model_dump_json(), type="test")
+            return BaseMessage(
+                content=SomeResponse(value=input.text).model_dump_json(), type="test"
+            )
 
         return cast(BaseChatModel, RunnableLambda(_internal))
 
@@ -98,19 +97,21 @@ async def test_run(input_value: str, input_value2: str, api_key: SecretStr) -> N
 
     assert r.startswith(input_value)  # followed by injected format instructions
 
-    rb = await endpoint.execute(call).many([{"input": input_value}, {"input": input_value2}])
+    rb = await endpoint.execute(call).many(
+        [{"input": input_value}, {"input": input_value2}]
+    )
 
     assert rb[0].startswith(input_value)  # followed by injected format instructions
     assert rb[1].startswith(input_value2)  # followed by injected format instructions
 
 
-async def test_retries_fail(input_value: str, output_value: str, api_key: SecretStr) -> None:
+async def test_retries_fail(
+    input_value: str, output_value: str, api_key: SecretStr
+) -> None:
     error_throws = 2
 
     call = define_prompt_llm_call(
-        "{input}",
-        input_type=SomeInput,
-        output_type=SomeResponse,
+        "{input}", input_type=SomeInput, output_type=SomeResponse
     ).map(lambda s: s.value)
 
     model_mock = MockModelRunnable()
@@ -118,10 +119,15 @@ async def test_retries_fail(input_value: str, output_value: str, api_key: Secret
     model_mock.throw_error_n_times = error_throws
 
     endpoint = LLMEndpoint(
-        default_retry_settings={**default_retry_settings(), "stop": stop_after_attempt(error_throws)},
+        default_retry_settings={
+            **default_retry_settings(),
+            "stop": stop_after_attempt(error_throws),
+        },
         default_timeout=Timeouts.tiny,
         default_model=LLMModel.gpt4(),
-        model_factory=lambda model, timeout, api_key=None: cast(BaseChatModel, model_mock),
+        model_factory=lambda model, timeout, api_key=None: cast(
+            BaseChatModel, model_mock
+        ),
         api_key=api_key,
     )
 
@@ -129,13 +135,13 @@ async def test_retries_fail(input_value: str, output_value: str, api_key: Secret
         await endpoint.execute(call).once({"input": input_value})
 
 
-async def test_retries_success(input_value: str, output_value: str, api_key: SecretStr) -> None:
+async def test_retries_success(
+    input_value: str, output_value: str, api_key: SecretStr
+) -> None:
     error_throws = 2
 
     call = define_prompt_llm_call(
-        "{input}",
-        input_type=SomeInput,
-        output_type=SomeResponse,
+        "{input}", input_type=SomeInput, output_type=SomeResponse
     ).map(lambda s: s.value)
 
     model_mock = MockModelRunnable()
@@ -143,10 +149,15 @@ async def test_retries_success(input_value: str, output_value: str, api_key: Sec
     model_mock.throw_error_n_times = error_throws
 
     endpoint = LLMEndpoint(
-        default_retry_settings={**default_retry_settings(), "stop": stop_after_attempt(error_throws + 1)},
+        default_retry_settings={
+            **default_retry_settings(),
+            "stop": stop_after_attempt(error_throws + 1),
+        },
         default_timeout=Timeouts.tiny,
         default_model=LLMModel.gpt4(),
-        model_factory=lambda model, timeout, api_key=None: cast(BaseChatModel, model_mock),
+        model_factory=lambda model, timeout, api_key=None: cast(
+            BaseChatModel, model_mock
+        ),
         api_key=api_key,
     )
 
@@ -160,15 +171,11 @@ async def test_retries_multi_call_one_fully_fail(
     error_throws = 2
 
     call1 = define_prompt_llm_call(
-        "{input}",
-        input_type=SomeInput,
-        output_type=SomeResponse,
+        "{input}", input_type=SomeInput, output_type=SomeResponse
     ).map(lambda s: s.value)
 
     call2 = define_prompt_llm_call(
-        "{input}",
-        input_type=SomeInput,
-        output_type=SomeResponse,
+        "{input}", input_type=SomeInput, output_type=SomeResponse
     ).map(lambda s: s.value)
 
     call = ChainComputation.map_n(lambda x, y: (x, y), call1, call2)
@@ -183,12 +190,17 @@ async def test_retries_multi_call_one_fully_fail(
     # NOTE: Each mock appears twice: once for the base model, once for the output-fixing model
     model_mocks = [model_mock1, model_mock1, model_mock2, model_mock2]
 
-    def model_factory(model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None) -> BaseChatModel:
+    def model_factory(
+        model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None
+    ) -> BaseChatModel:
         chosen_model = model_mocks.pop(0)
         return cast(BaseChatModel, chosen_model)
 
     endpoint = LLMEndpoint(
-        default_retry_settings={**default_retry_settings(), "stop": stop_after_attempt(error_throws)},
+        default_retry_settings={
+            **default_retry_settings(),
+            "stop": stop_after_attempt(error_throws),
+        },
         default_timeout=Timeouts.tiny,
         default_model=LLMModel.gpt4(),
         model_factory=model_factory,
@@ -205,15 +217,11 @@ async def test_retries_multi_call_both_fail_recover(
     error_throws = 2
 
     call1 = define_prompt_llm_call(
-        "{input}",
-        input_type=SomeInput,
-        output_type=SomeResponse,
+        "{input}", input_type=SomeInput, output_type=SomeResponse
     ).map(lambda s: s.value)
 
     call2 = define_prompt_llm_call(
-        "{input}",
-        input_type=SomeInput,
-        output_type=SomeResponse,
+        "{input}", input_type=SomeInput, output_type=SomeResponse
     ).map(lambda s: s.value)
 
     call = ChainComputation.map_n(lambda x, y: (x, y), call1, call2)
@@ -229,12 +237,17 @@ async def test_retries_multi_call_both_fail_recover(
     # NOTE: Each mock appears twice: once for the base model, once for the output-fixing model
     model_mocks = [model_mock1, model_mock1, model_mock2, model_mock2]
 
-    def model_factory(model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None) -> BaseChatModel:
+    def model_factory(
+        model: LLMModel, timeout: MaboolTimeout, api_key: SecretStr | None = None
+    ) -> BaseChatModel:
         chosen_model = model_mocks.pop(0)
         return cast(BaseChatModel, chosen_model)
 
     endpoint = LLMEndpoint(
-        default_retry_settings={**default_retry_settings(), "stop": stop_after_attempt(error_throws + 1)},
+        default_retry_settings={
+            **default_retry_settings(),
+            "stop": stop_after_attempt(error_throws + 1),
+        },
         default_timeout=Timeouts.tiny,
         default_model=LLMModel.gpt4(),
         model_factory=model_factory,

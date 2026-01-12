@@ -1,9 +1,8 @@
 from typing import TypedDict
 
 from ai2i.chain import define_prompt_llm_call
-from pydantic import BaseModel
-
 from mabool.agents.common.common import InputQuery
+from pydantic import BaseModel
 
 # -------------- #
 # Suggest Papers #

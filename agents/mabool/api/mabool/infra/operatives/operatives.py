@@ -12,9 +12,8 @@ from typing import Any, ClassVar, Iterator, Type, TypeAlias, TypeVar
 from ai2i.di import DI, ApplicationContext, ApplicationScopes, builtin_deps
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from cachetools import TTLCache
-from pydantic import BaseModel, Field
-
 from mabool.data_model.agent import AgentError, AnalyzedQuery, PartiallyAnalyzedQuery
+from pydantic import BaseModel, Field
 
 SessionId: TypeAlias = str
 StateId: TypeAlias = str
@@ -47,7 +46,9 @@ class SessionData(BaseModel):
 
 
 class InteractionManager:
-    _sessions: ClassVar[TTLCache[SessionId, SessionData]] = TTLCache[SessionId, SessionData](maxsize=10000, ttl=86400)
+    _sessions: ClassVar[TTLCache[SessionId, SessionData]] = TTLCache[
+        SessionId, SessionData
+    ](maxsize=10000, ttl=86400)
 
     def __getitem__(self, session_id: SessionId) -> SessionData:
         return self._sessions[session_id]
@@ -65,7 +66,12 @@ class InteractionManager:
         response: InquiryReply,
         app_ctx: ApplicationContext = DI.requires(builtin_deps.application_context),
     ) -> None:
-        logger.debug("Session ID: " + session_id + " Sending InteractiveReply: " + response.answer)
+        logger.debug(
+            "Session ID: "
+            + session_id
+            + " Sending InteractiveReply: "
+            + response.answer
+        )
         try:
             async with asyncio.timeout(1):
                 # NOTE: we send this "logical thread" DI scopes context, so that the background operative
@@ -90,20 +96,33 @@ class InteractionManager:
         app_ctx: ApplicationContext = DI.requires(builtin_deps.application_context),
     ) -> InquiryReply:
         logger.debug("Session ID: " + session_id + " Receiving InteractiveReply")
-        inquiry_and_context = await self._sessions[session_id].inquiry_reply_receive_channel.receive()
+        inquiry_and_context = await self._sessions[
+            session_id
+        ].inquiry_reply_receive_channel.receive()
         inquiry = inquiry_and_context.reply
         app_ctx.scopes = inquiry_and_context.scopes
-        logger.debug("Session ID: " + session_id + " Received InteractiveReply: " + inquiry.answer)
+        logger.debug(
+            "Session ID: "
+            + session_id
+            + " Received InteractiveReply: "
+            + inquiry.answer
+        )
         return inquiry
 
-    async def send_inquiry(self, session_id: SessionId, inquiry: InquiryQuestion) -> None:
-        logger.debug("Session ID: " + session_id + " Sending Inquiry: " + inquiry.question)
+    async def send_inquiry(
+        self, session_id: SessionId, inquiry: InquiryQuestion
+    ) -> None:
+        logger.debug(
+            "Session ID: " + session_id + " Sending Inquiry: " + inquiry.question
+        )
         await self._sessions[session_id].inquiry_send_channel.send(inquiry)
 
     async def receive_inquiry(self, session_id: SessionId) -> InquiryQuestion:
         logger.debug("Session ID: " + session_id + " Receiving Inquiry")
         inquiry = await self._sessions[session_id].inquiry_receive_channel.receive()
-        logger.debug("Session ID: " + session_id + " Received Inquiry: " + inquiry.question)
+        logger.debug(
+            "Session ID: " + session_id + " Received Inquiry: " + inquiry.question
+        )
         return inquiry
 
     def pop_pending_task(self, session_id: SessionId) -> asyncio.Task:
@@ -148,7 +167,9 @@ class StateManager[STATE]:
     ](maxsize=10000, ttl=86400)
 
     id: StateManagerId = field()
-    _child_state_managers: dict[StateManagerId, StateManager[STATE]] = field(default_factory=dict)
+    _child_state_managers: dict[StateManagerId, StateManager[STATE]] = field(
+        default_factory=dict
+    )
 
     def get_state(self) -> STATE | None:
         return self._state_dict.get((self.id, state_context.get()))
@@ -208,7 +229,11 @@ class Inquiry(BaseModel):
 
 # Operative.
 class Operative[INPUT, OUTPUT, STATE]:
-    def __init__(self, state_manager: StateManager[STATE] | None = None, interactions: Interactions | None = None):
+    def __init__(
+        self,
+        state_manager: StateManager[STATE] | None = None,
+        interactions: Interactions | None = None,
+    ):
         self._interactions = interactions
         self._state_manager = state_manager or StateManager[STATE].init_root_manager(
             f"{self.__class__.__name__}_{uuid.uuid4().hex}"
@@ -222,11 +247,17 @@ class Operative[INPUT, OUTPUT, STATE]:
             self._state_manager.set_state(state)
             return response
         except Exception as e:
-            logger.exception(f"An error occurred while running {self.__class__.__name__}: {e}")
+            logger.exception(
+                f"An error occurred while running {self.__class__.__name__}: {e}"
+            )
             return VoidResponse(error=AgentError(type="other", message=str(e)))
 
     def inquiry(self) -> Inquiry | None:
-        interactions = interaction_manager.interactions() if not self._interactions else self._interactions
+        interactions = (
+            interaction_manager.interactions()
+            if not self._interactions
+            else self._interactions
+        )
         if not interactions:
             return None
         return Inquiry(interactions=interactions)
@@ -255,7 +286,9 @@ class Operative[INPUT, OUTPUT, STATE]:
 
 
 @contextmanager
-def session_context_middleware(conversation_thread_id: str, state_id: StateId) -> Iterator[None]:
+def session_context_middleware(
+    conversation_thread_id: str, state_id: StateId
+) -> Iterator[None]:
     session_context.set(conversation_thread_id)
     state_context.set(state_id)
     yield

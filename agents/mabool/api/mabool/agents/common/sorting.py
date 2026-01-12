@@ -21,7 +21,6 @@ from ai2i.dcollection import (
     RelevanceJudgement,
     Typed,
 )
-
 from mabool.agents.common.computed_fields.fields import rerank_score_field
 from mabool.agents.common.computed_fields.relevance import relevance_judgement_field
 from mabool.data_model.agent import AnalyzedQuery, RelevanceCriteria
@@ -53,26 +52,34 @@ class SortPreferences:
     ) -> SortPreferences:
         return SortPreferences(
             is_recent_explicit=(
-                analyzed_query.extracted_properties.recent_first or analyzed_query.extracted_properties.recent_last
+                analyzed_query.extracted_properties.recent_first
+                or analyzed_query.extracted_properties.recent_last
             ),
-            recent_first=analyzed_query.extracted_properties.recent_first or assume_recent_first,
+            recent_first=analyzed_query.extracted_properties.recent_first
+            or assume_recent_first,
             recent_last=analyzed_query.extracted_properties.recent_last,
             is_central_explicit=(
-                analyzed_query.extracted_properties.central_first or analyzed_query.extracted_properties.central_last
+                analyzed_query.extracted_properties.central_first
+                or analyzed_query.extracted_properties.central_last
             ),
-            central_first=analyzed_query.extracted_properties.central_first or assume_central_first,
+            central_first=analyzed_query.extracted_properties.central_first
+            or assume_central_first,
             central_last=analyzed_query.extracted_properties.central_last,
             consider_content_relevance=consider_content_relevance,
             relevance_criteria=analyzed_query.relevance_criteria,
         )
 
-    def required_fields(self) -> list[DocumentFieldName | BaseComputedField[DocumentFieldName, Any]]:
+    def required_fields(
+        self,
+    ) -> list[DocumentFieldName | BaseComputedField[DocumentFieldName, Any]]:
         if (
             self.consider_content_relevance
             and self.relevance_criteria
             and self.relevance_criteria.required_relevance_critieria
         ):
-            fields: list[DocumentFieldName | BaseComputedField[DocumentFieldName, Any]] = [
+            fields: list[
+                DocumentFieldName | BaseComputedField[DocumentFieldName, Any]
+            ] = [
                 relevance_judgement_field(self.relevance_criteria),
                 rerank_score_field(self.relevance_criteria),
             ]
@@ -89,11 +96,17 @@ class SortPreferences:
             if self.is_recent_explicit and self.is_central_explicit:
                 return ScoreWeights(Wcontent_relevance=0.8, Wrecent=0.1, Wcentral=0.1)
             elif self.is_recent_explicit:
-                return ScoreWeights(Wcontent_relevance=0.8, Wrecent=0.175, Wcentral=0.025)
+                return ScoreWeights(
+                    Wcontent_relevance=0.8, Wrecent=0.175, Wcentral=0.025
+                )
             elif self.is_central_explicit:
-                return ScoreWeights(Wcontent_relevance=0.8, Wrecent=0.025, Wcentral=0.175)
+                return ScoreWeights(
+                    Wcontent_relevance=0.8, Wrecent=0.025, Wcentral=0.175
+                )
             else:
-                return ScoreWeights(Wcontent_relevance=0.95, Wrecent=0.025, Wcentral=0.025)
+                return ScoreWeights(
+                    Wcontent_relevance=0.95, Wrecent=0.025, Wcentral=0.025
+                )
         else:
             if self.is_recent_explicit and self.is_central_explicit:
                 return ScoreWeights(Wcontent_relevance=0.0, Wrecent=0.5, Wcentral=0.5)
@@ -135,22 +148,44 @@ class Weights:
 
 
 def weight_on_similar() -> Weights:
-    return Weights(year=0.1, citation_count=0.1, rerank_score=1, num_snippets=0.5, original_order=1)
+    return Weights(
+        year=0.1, citation_count=0.1, rerank_score=1, num_snippets=0.5, original_order=1
+    )
 
 
 def weight_on_recent() -> Weights:
-    return Weights(year=1, citation_count=0.1, rerank_score=0.1, num_snippets=0.05, original_order=0.1)
+    return Weights(
+        year=1,
+        citation_count=0.1,
+        rerank_score=0.1,
+        num_snippets=0.05,
+        original_order=0.1,
+    )
 
 
 def weight_on_central() -> Weights:
-    return Weights(year=0.1, citation_count=1, rerank_score=0.1, num_snippets=0.05, original_order=0.1)
+    return Weights(
+        year=0.1,
+        citation_count=1,
+        rerank_score=0.1,
+        num_snippets=0.05,
+        original_order=0.1,
+    )
 
 
 def weight_on_recent_and_central_weights() -> Weights:
-    return Weights(year=1, citation_count=1, rerank_score=0.1, num_snippets=0.05, original_order=0.1)
+    return Weights(
+        year=1,
+        citation_count=1,
+        rerank_score=0.1,
+        num_snippets=0.05,
+        original_order=0.1,
+    )
 
 
-def normalize_column(s: pd.Series[float], s_min: float | None = None, s_max: float | None = None) -> pd.Series | float:
+def normalize_column(
+    s: pd.Series[float], s_min: float | None = None, s_max: float | None = None
+) -> pd.Series | float:
     if s_min is None:
         s_min = s.min()
     if s_max is None:
@@ -204,7 +239,9 @@ def weighted_average_sort(
             key_min = df[f"__{key}_score"].min()  # only ignoring the top scores
             key_max = df[f"__{key}_score"].quantile(0.99)
             # clip the scores to ignore outliers
-            df[f"__{key}_score"] = df[f"__{key}_score"].apply(lambda x: min(max(x, key_min), key_max))
+            df[f"__{key}_score"] = df[f"__{key}_score"].apply(
+                lambda x: min(max(x, key_min), key_max)
+            )
         else:
             key_min = df[f"__{key}_score"].min()
             key_max = df[f"__{key}_score"].max()
@@ -254,7 +291,10 @@ def get_sorting_explanation(
             sorting_details.append(ufv(uf.sorting.explanation.least_cited))
     sorting_explanation = AND_CONNECTOR.join(sorting_details)
     if sorting_explanation:
-        sorting_explanation = ufv(uf.sorting.explanation.sorting_explanation, sorting_explanation=sorting_explanation)
+        sorting_explanation = ufv(
+            uf.sorting.explanation.sorting_explanation,
+            sorting_explanation=sorting_explanation,
+        )
     return sorting_explanation
 
 
@@ -278,13 +318,19 @@ def get_sorting_weights(
     if recent_first:
         recency_weights = dataclasses.replace(base_weights, year=abs(base_weights.year))
     elif recent_last:
-        recency_weights = dataclasses.replace(base_weights, year=-abs(base_weights.year))
+        recency_weights = dataclasses.replace(
+            base_weights, year=-abs(base_weights.year)
+        )
     else:
         recency_weights = dataclasses.replace(base_weights, year=0)
     if central_first:
-        weights = dataclasses.replace(recency_weights, citation_count=abs(recency_weights.citation_count))
+        weights = dataclasses.replace(
+            recency_weights, citation_count=abs(recency_weights.citation_count)
+        )
     elif central_last:
-        weights = dataclasses.replace(recency_weights, citation_count=-abs(recency_weights.citation_count))
+        weights = dataclasses.replace(
+            recency_weights, citation_count=-abs(recency_weights.citation_count)
+        )
     else:
         weights = dataclasses.replace(recency_weights, citation_count=0)
 
@@ -298,18 +344,25 @@ async def sorted_docs_by_preferences(
     sort_documents_input: SortPreferences,
     only_use_existing_fields: bool = False,
 ) -> DocumentCollection:
-    docs = await add_broad_search_score(docs, sort_documents_input, only_use_existing_fields=only_use_existing_fields)
+    docs = await add_broad_search_score(
+        docs, sort_documents_input, only_use_existing_fields=only_use_existing_fields
+    )
 
-    docs = docs.sorted([DocumentCollectionSortDef(field_name="broad_search_score", order="desc")])
+    docs = docs.sorted(
+        [DocumentCollectionSortDef(field_name="broad_search_score", order="desc")]
+    )
     return docs
 
 
 async def weighted_sort_calculation(
-    documents: Sequence[Document],
-    weights: Weights | dict[str, float],
+    documents: Sequence[Document], weights: Weights | dict[str, float]
 ) -> Sequence[float]:
     logger.info("Calculating weighted sort score")
-    weights_keys = list(weights.keys() if isinstance(weights, dict) else dataclasses.asdict(weights).keys())
+    weights_keys = list(
+        weights.keys()
+        if isinstance(weights, dict)
+        else dataclasses.asdict(weights).keys()
+    )
 
     if not documents:
         return []
@@ -320,7 +373,9 @@ async def weighted_sort_calculation(
     for doc in documents:
         doc_rows = df.loc[df["corpus_id"] == doc.corpus_id]
         if doc_rows.empty:
-            logger.warning(f"Document {doc.corpus_id} not found in the weighted sort dataframe, filling with 0")
+            logger.warning(
+                f"Document {doc.corpus_id} not found in the weighted sort dataframe, filling with 0"
+            )
             weighted_sort_score = 0.0
         elif len(doc_rows) > 1:
             logger.warning(
@@ -331,7 +386,8 @@ async def weighted_sort_calculation(
             weighted_sort_score = doc_rows["final_sort_score"].iloc[0]
         weighted_sort_score = (
             float(weighted_sort_score)
-            if isinstance(weighted_sort_score, float) or isinstance(weighted_sort_score, int)
+            if isinstance(weighted_sort_score, float)
+            or isinstance(weighted_sort_score, int)
             else 0.0
         )
         weighted_sort_scores.append(weighted_sort_score)
@@ -339,8 +395,7 @@ async def weighted_sort_calculation(
 
 
 async def add_weighted_sort_score(
-    collection: DocumentCollection,
-    sort_documents_input: SortPreferences,
+    collection: DocumentCollection, sort_documents_input: SortPreferences
 ) -> DocumentCollection:
     weights = sort_documents_input.get_sorting_weights()
     logger.info(f"Sorting weights: {weights}")
@@ -349,9 +404,11 @@ async def add_weighted_sort_score(
             ComputedField(
                 field_name="num_snippets",
                 required_fields=["snippets"],
-                computation_func=Typed[PaperFinderDocument, int](lambda doc: len(doc.snippets) if doc.snippets else 0),
-            ),
-        ],
+                computation_func=Typed[PaperFinderDocument, int](
+                    lambda doc: len(doc.snippets) if doc.snippets else 0
+                ),
+            )
+        ]
     )
 
     docs = collection_with_num_snippets.documents
@@ -364,10 +421,12 @@ async def add_weighted_sort_score(
                 field_name="original_order",
                 assigned_values=[original_sort_d[doc.corpus_id] for doc in docs],
             ),
-        ],
+        ]
     )
 
-    async def weighted_sort_calculation_partial(documents: Sequence[Document]) -> Sequence[float]:
+    async def weighted_sort_calculation_partial(
+        documents: Sequence[Document],
+    ) -> Sequence[float]:
         return await weighted_sort_calculation(documents, weights)
 
     collection_with_final_sort_field = await collection_with_original_order.with_fields(
@@ -383,8 +442,8 @@ async def add_weighted_sort_score(
                     "num_snippets",
                     "original_order",
                 ],
-            ),
-        ],
+            )
+        ]
     )
 
     return collection_with_final_sort_field
@@ -399,9 +458,7 @@ def sigmoid(x: float, center_shift: float = 0.0, steepness: float = 1.0) -> floa
 
 
 def central_first_score_sigmoid(
-    citation_count: int | None,
-    center_citation_count: int = 50,
-    steepness: float = 1.8,
+    citation_count: int | None, center_citation_count: int = 50, steepness: float = 1.8
 ) -> float:
     if not citation_count or citation_count <= 0 or center_citation_count <= 0:
         return 0.0
@@ -412,27 +469,28 @@ def central_first_score_sigmoid(
             steepness=steepness,
         )
     except Exception as e:
-        logger.exception(f"Error in central_first_score_sigmoid: citation_count={citation_count}, {e}")
+        logger.exception(
+            f"Error in central_first_score_sigmoid: citation_count={citation_count}, {e}"
+        )
         return 0.0
 
 
 def central_last_score_sigmoid(
-    citation_count: int | None,
-    center_citation_count: int = 50,
-    steepness: float = 1.8,
+    citation_count: int | None, center_citation_count: int = 50, steepness: float = 1.8
 ) -> float:
     if not citation_count or citation_count <= 0 or center_citation_count <= 0:
         return 1.0
 
     return 1 - central_first_score_sigmoid(
-        citation_count,
-        center_citation_count=center_citation_count,
-        steepness=steepness,
+        citation_count, center_citation_count=center_citation_count, steepness=steepness
     )
 
 
 def recent_first_score_sigmoid(
-    year: int | None, year_max: int | None = None, center_shift: float = 7.0, steepness: float = 0.7
+    year: int | None,
+    year_max: int | None = None,
+    center_shift: float = 7.0,
+    steepness: float = 0.7,
 ) -> float:
     if year_max is None:
         year_max = datetime.now().year
@@ -443,7 +501,9 @@ def recent_first_score_sigmoid(
     try:
         return sigmoid(year, -(year_max - center_shift), steepness)
     except Exception as e:
-        logger.exception(f"Error in recent_first_score_sigmoid: year={year}, year_max={year_max}, {e}")
+        logger.exception(
+            f"Error in recent_first_score_sigmoid: year={year}, year_max={year_max}, {e}"
+        )
         return 0.0
 
 
@@ -462,7 +522,9 @@ def recent_last_score_sigmoid(
     try:
         return 1 - sigmoid(year, -(year_max - center_shift), steepness)
     except Exception as e:
-        logger.exception(f"Error in recent_last_score_sigmoid: year={year}, year_max={year_max}, {e}")
+        logger.exception(
+            f"Error in recent_last_score_sigmoid: year={year}, year_max={year_max}, {e}"
+        )
         return 0.0
 
 
@@ -480,7 +542,10 @@ class ScoreWeights:
 
 
 def content_relevance_score(
-    relevance_judgement_score: float, rerank_score: float, num_snippets: int, original_order_score: float = 0.0
+    relevance_judgement_score: float,
+    rerank_score: float,
+    num_snippets: int,
+    original_order_score: float = 0.0,
 ) -> float:
     relevance_judgement_score = max(relevance_judgement_score, 0.0)
     rerank_score = max(rerank_score, 0.0)
@@ -527,11 +592,19 @@ async def add_broad_search_score(
         try:
             collection = await collection.with_fields(required_fields)
         except Exception as e:
-            logger.exception(f"Failed to add fields to the documents for sorting, sorting with exisiting fields: {e}")
+            logger.exception(
+                f"Failed to add fields to the documents for sorting, sorting with exisiting fields: {e}"
+            )
 
-    recency_score_func = recent_last_score_sigmoid if sort_documents_input.recent_last else recent_first_score_sigmoid
+    recency_score_func = (
+        recent_last_score_sigmoid
+        if sort_documents_input.recent_last
+        else recent_first_score_sigmoid
+    )
     centrality_score_func = (
-        central_last_score_sigmoid if sort_documents_input.central_last else central_first_score_sigmoid
+        central_last_score_sigmoid
+        if sort_documents_input.central_last
+        else central_first_score_sigmoid
     )
     original_order_scores = {}
 
@@ -542,11 +615,14 @@ async def add_broad_search_score(
                 required_fields=[],
                 assigned_values=[
                     content_relevance_score(
-                        relevance_judgement_score=_relevance_judgement_score(doc.relevance_judgement),
+                        relevance_judgement_score=_relevance_judgement_score(
+                            doc.relevance_judgement
+                        ),
                         rerank_score=doc.rerank_score if doc.rerank_score else 0.0,
                         num_snippets=(len(doc.snippets) if doc.snippets else 0)
                         + (len(doc.citation_contexts) if doc.citation_contexts else 0),
-                        original_order_score=original_order_scores.get(doc.corpus_id) or 0.0,
+                        original_order_score=original_order_scores.get(doc.corpus_id)
+                        or 0.0,
                     )
                     for doc in collection.documents
                 ],
@@ -554,12 +630,17 @@ async def add_broad_search_score(
             AssignedField[float](
                 field_name="recency_score",
                 required_fields=[],
-                assigned_values=[recency_score_func(doc.year) for doc in collection.documents],
+                assigned_values=[
+                    recency_score_func(doc.year) for doc in collection.documents
+                ],
             ),
             AssignedField[float](
                 field_name="centrality_score",
                 required_fields=[],
-                assigned_values=[centrality_score_func(doc.citation_count) for doc in collection.documents],
+                assigned_values=[
+                    centrality_score_func(doc.citation_count)
+                    for doc in collection.documents
+                ],
             ),
         ]
     )
@@ -572,7 +653,11 @@ async def add_broad_search_score(
                 required_fields=[],
                 assigned_values=[
                     weighted_sum(
-                        [doc["content_relevance_score"], doc["recency_score"], doc["centrality_score"]],
+                        [
+                            doc["content_relevance_score"],
+                            doc["recency_score"],
+                            doc["centrality_score"],
+                        ],
                         [weights.Wcontent_relevance, weights.Wrecent, weights.Wcentral],
                     )
                     for doc in collection.documents

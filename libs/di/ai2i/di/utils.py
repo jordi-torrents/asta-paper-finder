@@ -22,7 +22,8 @@ def dependency_topological_sort(
 
     # remove any dependencies that need to be ignored
     unsorted_defs = [
-        replace(d, depends_on=[i for i in d.depends_on if i not in ignore_dep_names]) for d in unsorted_defs
+        replace(d, depends_on=[i for i in d.depends_on if i not in ignore_dep_names])
+        for d in unsorted_defs
     ]
 
     while len(unsorted_defs) > 0:

@@ -77,7 +77,9 @@ async def custom_gather[T1, T2, T3, T4](
     *,
     return_exceptions: bool,
     force_deterministic: bool,
-) -> tuple[T1 | BaseException, T2 | BaseException, T3 | BaseException, T4 | BaseException]: ...
+) -> tuple[
+    T1 | BaseException, T2 | BaseException, T3 | BaseException, T4 | BaseException
+]: ...
 
 
 @overload
@@ -161,9 +163,7 @@ async def custom_gather[T1](
 
 @overload
 async def custom_gather[T1](
-    *tasks: _Promise[T1],
-    return_exceptions: bool,
-    force_deterministic: bool,
+    *tasks: _Promise[T1], return_exceptions: bool, force_deterministic: bool
 ) -> tuple[T1 | BaseException, ...]: ...
 
 
@@ -176,11 +176,15 @@ async def custom_gather(
             try:
                 results.append(await task)  # Run tasks serially
             except Exception as e:
-                logger.exception(f"Failed to process task result for task: {task}, error: {e}")
+                logger.exception(
+                    f"Failed to process task result for task: {task}, error: {e}"
+                )
                 if return_exceptions:
                     results.append(e)
                 else:
                     raise e
         return tuple(results)
     else:
-        return tuple(await asyncio.gather(*tasks, return_exceptions=return_exceptions))  # Run tasks in parallel
+        return tuple(
+            await asyncio.gather(*tasks, return_exceptions=return_exceptions)
+        )  # Run tasks in parallel

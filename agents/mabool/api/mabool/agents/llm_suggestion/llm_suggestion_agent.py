@@ -5,11 +5,7 @@ from ai2i.chain import LLMEndpoint, LLMModel, Timeouts, define_llm_endpoint
 from ai2i.config import config_value
 from ai2i.dcollection import DocumentCollection, ExtractedYearlyTimeRange, OriginQuery
 from ai2i.di import DI
-from pydantic import BaseModel
-
-from mabool.agents.common.common import (
-    AgentState,
-)
+from mabool.agents.common.common import AgentState
 from mabool.agents.common.domain_utils import get_system_domain_params
 from mabool.agents.common.utils import alog_args
 from mabool.agents.llm_suggestion.llm_suggestion_prompts import (
@@ -17,16 +13,13 @@ from mabool.agents.llm_suggestion.llm_suggestion_prompts import (
     SuggestPapersInput,
     suggested_paper,
 )
-from mabool.data_model.agent import (
-    AgentInput,
-    AgentOutput,
-    DomainsIdentified,
-)
+from mabool.data_model.agent import AgentInput, AgentOutput, DomainsIdentified
 from mabool.data_model.config import cfg_schema
 from mabool.infra.operatives import CompleteResponse, Operative, OperativeResponse
 from mabool.utils.asyncio import custom_gather
 from mabool.utils.dc import DC
 from mabool.utils.llm_utils import get_api_key_for_model
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +40,9 @@ LLMSuggestionOutput = AgentOutput
 
 
 def get_default_endpoint() -> LLMEndpoint:
-    llm_model = LLMModel.from_name(config_value(cfg_schema.llm_suggestion_agent.llm_model_name))
+    llm_model = LLMModel.from_name(
+        config_value(cfg_schema.llm_suggestion_agent.llm_model_name)
+    )
     return define_llm_endpoint(
         default_timeout=Timeouts.medium,
         default_model=llm_model,
@@ -64,7 +59,9 @@ async def fetch_from_s2(
         DC.from_s2_by_title(
             suggested_paper.title,
             time_range=(
-                ExtractedYearlyTimeRange(start=suggested_paper.year - 2, end=suggested_paper.year + 2)
+                ExtractedYearlyTimeRange(
+                    start=suggested_paper.year - 2, end=suggested_paper.year + 2
+                )
                 if suggested_paper.year
                 else None
             ),
@@ -122,14 +119,16 @@ async def get_llm_suggested_papers(
                         ranks=[i + 1],
                     )
                 ]
-            },
+            }
         )
     )
 
     return found_papers
 
 
-class LLMSuggestionAgent(Operative[LLMSuggestionInput, LLMSuggestionOutput, LLMSuggestionState]):
+class LLMSuggestionAgent(
+    Operative[LLMSuggestionInput, LLMSuggestionOutput, LLMSuggestionState]
+):
     def register(self) -> None: ...
 
     @alog_args(log_function=logging.info)
@@ -137,13 +136,14 @@ class LLMSuggestionAgent(Operative[LLMSuggestionInput, LLMSuggestionOutput, LLMS
         self, state: LLMSuggestionState | None, inputs: LLMSuggestionInput
     ) -> tuple[LLMSuggestionState | None, OperativeResponse[LLMSuggestionOutput]]:
         search_results = await get_llm_suggested_papers(
-            inputs.user_input,
-            inputs.domains,
-            inputs.extra_hints,
-            inputs.n_suggestions,
+            inputs.user_input, inputs.domains, inputs.extra_hints, inputs.n_suggestions
         )
 
         return (
             state,
-            CompleteResponse(data=LLMSuggestionOutput(response_text="", doc_collection=search_results)),
+            CompleteResponse(
+                data=LLMSuggestionOutput(
+                    response_text="", doc_collection=search_results
+                )
+            ),
         )

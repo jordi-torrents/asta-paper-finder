@@ -11,8 +11,8 @@ class DenseAgent:
     initial_top_k_per_query: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
         ["dense_agent", "initial_top_k_per_query"]
     )
-    reformulate_prompt_example_docs: ConfigValuePlaceholder[int] = ConfigValuePlaceholder(
-        ["dense_agent", "reformulate_prompt_example_docs"]
+    reformulate_prompt_example_docs: ConfigValuePlaceholder[int] = (
+        ConfigValuePlaceholder(["dense_agent", "reformulate_prompt_example_docs"])
     )
 
 

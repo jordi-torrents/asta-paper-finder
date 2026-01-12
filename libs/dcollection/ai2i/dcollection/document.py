@@ -3,9 +3,6 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Mapping, Sequence, overload
 
-from pydantic import Field, PrivateAttr
-from pydantic.fields import FieldInfo
-
 from ai2i.common.utils.data_struct import SortedSet
 from ai2i.dcollection.data_access_context import DynamicField
 from ai2i.dcollection.fusers.fuse import fuse_origin_query, fuse_snippet
@@ -30,6 +27,8 @@ from ai2i.dcollection.interface.document import (
 )
 from ai2i.dcollection.loaders.fields import load_markdown
 from ai2i.dcollection.loaders.s2_rest import from_s2
+from pydantic import Field, PrivateAttr
+from pydantic.fields import FieldInfo
 
 
 class PaperFinderDocument(Document):
@@ -70,20 +69,28 @@ class PaperFinderDocument(Document):
     authors: list[Author] | None = dynamic_field(default=None, loaders=[from_s2])
     abstract: str | None = dynamic_field(default=None, loaders=[from_s2])
     venue: str | None = dynamic_field(default=None, loaders=[from_s2])
-    publication_venue: PublicationVenue | None = dynamic_field(default=None, loaders=[from_s2])
+    publication_venue: PublicationVenue | None = dynamic_field(
+        default=None, loaders=[from_s2]
+    )
     publication_types: list[str] | None = dynamic_field(default=None, loaders=[from_s2])
     fields_of_study: list[str] | None = dynamic_field(default=None, loaders=[from_s2])
     tldr: str | None = dynamic_field(default=None, loaders=[from_s2])
     snippets: list[Snippet] | None = dynamic_field(default=None, fuse=fuse_snippet)
-    origins: list[OriginQuery] | None = dynamic_field(default=None, fuse=fuse_origin_query)
+    origins: list[OriginQuery] | None = dynamic_field(
+        default=None, fuse=fuse_origin_query
+    )
     citations: list[Citation] | None = dynamic_field(default=None, loaders=[from_s2])
     citation_count: int | None = dynamic_field(default=None, loaders=[from_s2])
-    influential_citation_count: int | None = dynamic_field(default=None, loaders=[from_s2])
+    influential_citation_count: int | None = dynamic_field(
+        default=None, loaders=[from_s2]
+    )
     references: list[Citation] | None = dynamic_field(default=None, loaders=[from_s2])
     reference_count: int | None = dynamic_field(default=None, loaders=[from_s2])
     journal: Journal | None = dynamic_field(default=None, loaders=[from_s2])
     publication_date: date | None = dynamic_field(default=None, loaders=[from_s2])
-    relevance_judgement: RelevanceJudgement | None = external_dynamic_field(default=None)
+    relevance_judgement: RelevanceJudgement | None = external_dynamic_field(
+        default=None
+    )
     markdown: str | None = dynamic_field(
         default=None,
         loaders=[load_markdown],
@@ -98,7 +105,9 @@ class PaperFinderDocument(Document):
     )
     rerank_score: float | None = external_dynamic_field(default=None)
     final_agent_score: float | None = external_dynamic_field(default=None)
-    citation_contexts: list[CitationContext] | None = dynamic_field(default=None, fuse=fuse_citation_contexts)
+    citation_contexts: list[CitationContext] | None = dynamic_field(
+        default=None, fuse=fuse_citation_contexts
+    )
 
     _loaded_fields: set[DocumentFieldName] = PrivateAttr(default_factory=SortedSet)
 
@@ -123,7 +132,9 @@ class PaperFinderDocument(Document):
         self._add_to_loaded_fields(key)
         super().__setattr__(key, value)
         field = self.fields().get(key)
-        if self.model_extra is not None and (isinstance(field, DynamicField) and field.extra):
+        if self.model_extra is not None and (
+            isinstance(field, DynamicField) and field.extra
+        ):
             self.model_extra[key] = value
 
     def fields(self) -> Mapping[str, DynamicField | FieldInfo]:
@@ -158,7 +169,9 @@ class PaperFinderDocument(Document):
     ) -> V | None: ...
 
     @overload
-    def dynamic_value[V](self, field_name: DocumentFieldName, field_type: type[V], /, default: V) -> V: ...
+    def dynamic_value[V](
+        self, field_name: DocumentFieldName, field_type: type[V], /, default: V
+    ) -> V: ...
 
     def dynamic_value[V](
         self,
@@ -186,31 +199,46 @@ class PaperFinderDocument(Document):
                     field.fuse(self, other, field_name)
         return self
 
-    def clone_partial(self, fields: list[DocumentFieldName] | None = None) -> PaperFinderDocument:
+    def clone_partial(
+        self, fields: list[DocumentFieldName] | None = None
+    ) -> PaperFinderDocument:
         loaded_e = {
             field: self[field]
-            for field in SortedSet(self.model_fields_set | (self.model_extra.keys() if self.model_extra else set()))
+            for field in SortedSet(
+                self.model_fields_set
+                | (self.model_extra.keys() if self.model_extra else set())
+            )
             if field == "dynamic_fields"
             or (
                 self.is_loaded(field)
                 and (
                     fields is None
                     or field in fields
-                    or ((field_info := self.fields().get(field)) is not None and field_info.is_required())
+                    or (
+                        (field_info := self.fields().get(field)) is not None
+                        and field_info.is_required()
+                    )
                 )
             )
         }
         return PaperFinderDocument(**loaded_e)
 
-    def clone_with(self, data_overrides: dict[DocumentFieldName, Any]) -> PaperFinderDocument:
+    def clone_with(
+        self, data_overrides: dict[DocumentFieldName, Any]
+    ) -> PaperFinderDocument:
         loaded_e = {
             field: self[field]
-            for field in SortedSet(self.model_fields_set | (self.model_extra.keys() if self.model_extra else set()))
+            for field in SortedSet(
+                self.model_fields_set
+                | (self.model_extra.keys() if self.model_extra else set())
+            )
             if self.is_loaded(field) or field == "dynamic_fields"
         }
         for k, v in data_overrides.items():
             if len(getattr(self.fields()[k], "loading_functions", [])) > 0:
-                raise ValueError(f"Cannot replace field {k} as it is has a loader defined.")
+                raise ValueError(
+                    f"Cannot replace field {k} as it is has a loader defined."
+                )
             loaded_e[k] = v
         return PaperFinderDocument(**loaded_e)
 

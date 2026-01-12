@@ -30,7 +30,10 @@ def generate_settings_types(
         return "".join(word.capitalize() for word in words)
 
     def get_type_hint(
-        key: str, value: Any, all_values: dict[str, set], parent_key_path: Sequence[str] | None = None
+        key: str,
+        value: Any,
+        all_values: dict[str, set],
+        parent_key_path: Sequence[str] | None = None,
     ) -> str:
         if parent_key_path is None:
             parent_key_path = []
@@ -72,7 +75,10 @@ def generate_settings_types(
         return f"{VALUE_CONTAINER}[{type_value}] = {VALUE_CONTAINER}([{full_key_path_str}])"
 
     def generate_class(
-        name: str, data: dict[str, Any], all_values: dict[str, set], parent_key_path: Sequence[str] | None = None
+        name: str,
+        data: dict[str, Any],
+        all_values: dict[str, set],
+        parent_key_path: Sequence[str] | None = None,
     ) -> list[str]:
         if parent_key_path is None:
             parent_key_path = []
@@ -83,7 +89,9 @@ def generate_settings_types(
         for key, value in data.items():
             if isinstance(value, dict):
                 inner_class_name = camel_case(key)
-                lines_without_value.append(f"    {key.lower()}: {inner_class_name} = {inner_class_name}()")
+                lines_without_value.append(
+                    f"    {key.lower()}: {inner_class_name} = {inner_class_name}()"
+                )
             elif isinstance(value, list) and value and isinstance(value[0], dict):
                 value_type = f"list[{camel_case(key.removesuffix('s'))}]"
 
@@ -101,7 +109,9 @@ def generate_settings_types(
                 lines_with_value.append(f"    {key.lower()}: {type_hint}")
         return lines + lines_without_value + lines_with_value
 
-    def generate_named_tuple(name: str, data: list[dict[str, Any]], all_values: dict[str, set]) -> list[str]:
+    def generate_named_tuple(
+        name: str, data: list[dict[str, Any]], all_values: dict[str, set]
+    ) -> list[str]:
         lines = ["@dataclass(frozen=True)", f"class {name}:"]
 
         if not data:
@@ -175,8 +185,14 @@ def generate_settings_types(
         "",
     ]
 
-    settings_to_generate = settings[default_env] if default_env != "all" else {k: v for k, v in settings.items()}
-    classes_to_generate: list[tuple[str, dict[str, Any], list[str]]] = [(schema_class_name, settings_to_generate, [])]
+    settings_to_generate = (
+        settings[default_env]
+        if default_env != "all"
+        else {k: v for k, v in settings.items()}
+    )
+    classes_to_generate: list[tuple[str, dict[str, Any], list[str]]] = [
+        (schema_class_name, settings_to_generate, [])
+    ]
     generated_classes = set()
     named_tuples_to_generate = []
     output_chunks = []
@@ -196,9 +212,13 @@ def generate_settings_types(
 
             for key, value in class_data.items():
                 if isinstance(value, dict):
-                    classes_to_generate.append((camel_case(key), value, [*key_path, key]))
+                    classes_to_generate.append(
+                        (camel_case(key), value, [*key_path, key])
+                    )
                 elif isinstance(value, list) and value and isinstance(value[0], dict):
-                    named_tuples_to_generate.append((camel_case(key.removesuffix("s")), value))
+                    named_tuples_to_generate.append(
+                        (camel_case(key.removesuffix("s")), value)
+                    )
 
     for name, data in named_tuples_to_generate:
         named_tuple_lines = generate_named_tuple(name, data, all_values)
@@ -217,10 +237,19 @@ def generate_settings_types(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate settings type definitions")
-    parser.add_argument("--conf-dir", type=str, help="Path to the project root directory", default="conf")
-    parser.add_argument("--output-dir", type=str, help="Output directory for generated files")
     parser.add_argument(
-        "--user-facing", action="store_true", help="Generate user-facing settings types instead of app settings"
+        "--conf-dir",
+        type=str,
+        help="Path to the project root directory",
+        default="conf",
+    )
+    parser.add_argument(
+        "--output-dir", type=str, help="Output directory for generated files"
+    )
+    parser.add_argument(
+        "--user-facing",
+        action="store_true",
+        help="Generate user-facing settings types instead of app settings",
     )
 
     args = parser.parse_args()
@@ -240,4 +269,10 @@ if __name__ == "__main__":
         default_env = "default"
         schema_class_name = "AppConfigSchema"
         schema_variable_name = "cfg_schema"
-    generate_settings_types(settings_files, output_file, default_env, schema_class_name, schema_variable_name)
+    generate_settings_types(
+        settings_files,
+        output_file,
+        default_env,
+        schema_class_name,
+        schema_variable_name,
+    )

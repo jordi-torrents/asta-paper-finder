@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 import pytest
-
 from mabool.agents.metadata_only import ops
 from mabool.agents.query_analyzer.test_extract_specs import Test as SpecTest
 from mabool.data_model import specifications as specs
@@ -30,13 +29,21 @@ testdata: list[Test] = [
     Test(
         "By title and time range",
         "The 'Attention is All You Need' paper from 2017",
-        specs.PaperSpec(name="Attention is All You Need", years=specs.Years(start=2017, end=2017)),
-        ops.FromS2ByTitle(name="Attention is All You Need", time_range=specs.Years(start=2017, end=2017)),
+        specs.PaperSpec(
+            name="Attention is All You Need", years=specs.Years(start=2017, end=2017)
+        ),
+        ops.FromS2ByTitle(
+            name="Attention is All You Need",
+            time_range=specs.Years(start=2017, end=2017),
+        ),
     ),
     Test(
         "By title and several venues",
         "The 'Attention is All You Need' paper from NeurIPS or ICLR",
-        specs.PaperSpec(name="Attention is All You Need", venue=specs.Set(op="or", items=["NeurIPS", "ICLR"])),
+        specs.PaperSpec(
+            name="Attention is All You Need",
+            venue=specs.Set(op="or", items=["NeurIPS", "ICLR"]),
+        ),
         ops.FromS2ByTitle(name="Attention is All You Need", venues=["NeurIPS", "ICLR"]),
     ),
     Test(
@@ -44,12 +51,24 @@ testdata: list[Test] = [
         "The 'Attention is All You Need' paper from 2017 or 2018",
         specs.PaperSpec(
             name="Attention is All You Need",
-            years=specs.Set(op="or", items=[specs.Years(start=2017, end=2017), specs.Years(start=2018, end=2018)]),
+            years=specs.Set(
+                op="or",
+                items=[
+                    specs.Years(start=2017, end=2017),
+                    specs.Years(start=2018, end=2018),
+                ],
+            ),
         ),
         ops.Union(
             items=[
-                ops.FromS2ByTitle(name="Attention is All You Need", time_range=specs.Years(start=2017, end=2017)),
-                ops.FromS2ByTitle(name="Attention is All You Need", time_range=specs.Years(start=2018, end=2018)),
+                ops.FromS2ByTitle(
+                    name="Attention is All You Need",
+                    time_range=specs.Years(start=2017, end=2017),
+                ),
+                ops.FromS2ByTitle(
+                    name="Attention is All You Need",
+                    time_range=specs.Years(start=2018, end=2018),
+                ),
             ]
         ),
     ),
@@ -64,11 +83,18 @@ testdata: list[Test] = [
         "Papers by Gilad Bracha and William Cook",
         specs.PaperSpec(
             authors=specs.Set(
-                op="and", items=[specs.AuthorSpec(name="Gilad Bracha"), specs.AuthorSpec(name="William Cook")]
+                op="and",
+                items=[
+                    specs.AuthorSpec(name="Gilad Bracha"),
+                    specs.AuthorSpec(name="William Cook"),
+                ],
             )
         ),
         ops.Intersect(
-            items=[ops.FromS2ByAuthorByName(author="Gilad Bracha"), ops.FromS2ByAuthorByName(author="William Cook")]
+            items=[
+                ops.FromS2ByAuthorByName(author="Gilad Bracha"),
+                ops.FromS2ByAuthorByName(author="William Cook"),
+            ]
         ),
     ),
     Test(
@@ -76,29 +102,44 @@ testdata: list[Test] = [
         "Papers by Gilad Bracha or William Cook",
         specs.PaperSpec(
             authors=specs.Set(
-                op="or", items=[specs.AuthorSpec(name="Gilad Bracha"), specs.AuthorSpec(name="William Cook")]
+                op="or",
+                items=[
+                    specs.AuthorSpec(name="Gilad Bracha"),
+                    specs.AuthorSpec(name="William Cook"),
+                ],
             )
         ),
         ops.Union(
-            items=[ops.FromS2ByAuthorByName(author="Gilad Bracha"), ops.FromS2ByAuthorByName(author="William Cook")]
+            items=[
+                ops.FromS2ByAuthorByName(author="Gilad Bracha"),
+                ops.FromS2ByAuthorByName(author="William Cook"),
+            ]
         ),
     ),
     Test(
         "By author of a paper",
         "Papers by authors of the PlayGo paper",
         specs.PaperSpec(
-            authors=specs.AuthorSpec(papers=specs.PaperSet(op="any_author_of", items=[specs.PaperSpec(name="PlayGo")]))
+            authors=specs.AuthorSpec(
+                papers=specs.PaperSet(
+                    op="any_author_of", items=[specs.PaperSpec(name="PlayGo")]
+                )
+            )
         ),
         ops.ByAuthorsOfPapers(
             all_authors=False,
-            authors=ops.AuthorsOfPapers(papers=ops.FromS2ByTitle(name="PlayGo", time_range=None, venues=None)),
+            authors=ops.AuthorsOfPapers(
+                papers=ops.FromS2ByTitle(name="PlayGo", time_range=None, venues=None)
+            ),
         ),
     ),
     Test(
         "Cited by a paper",
         "Papers cited by the Attention paper",
         specs.PaperSpec(cited_by=specs.PaperSpec(name="Attention")),
-        ops.GetAllReferences(source=ops.FromS2ByTitle(name="Attention", time_range=None, venues=None)),
+        ops.GetAllReferences(
+            source=ops.FromS2ByTitle(name="Attention", time_range=None, venues=None)
+        ),
     ),
     Test(
         "Cited by more than one paper",
@@ -114,12 +155,10 @@ testdata: list[Test] = [
         ),
         ops.Intersect(
             items=[
+                ops.GetAllReferences(source=ops.FromS2ByTitle(name="Attention")),
                 ops.GetAllReferences(
-                    source=ops.FromS2ByTitle(
-                        name="Attention",
-                    )
+                    source=ops.FromS2ByAuthorByName(author="Guido Van Russom")
                 ),
-                ops.GetAllReferences(source=ops.FromS2ByAuthorByName(author="Guido Van Russom")),
             ]
         ),
     ),
@@ -131,14 +170,18 @@ testdata: list[Test] = [
             citing=specs.PaperSpec(authors=specs.AuthorSpec(name="Matthias Felleisen")),
         ),
         ops.FilterCiting(
-            source=ops.EnrichWithReferences(source=ops.FromS2ByAuthorByName(author="Dan Friedman")),
+            source=ops.EnrichWithReferences(
+                source=ops.FromS2ByAuthorByName(author="Dan Friedman")
+            ),
             to_cite=ops.FromS2ByAuthorByName(author="Matthias Felleisen"),
         ),
     ),
     Test(
         "Citing a single paper spec",
         "Papers citing Aaron Turon",
-        specs.PaperSpec(citing=specs.PaperSpec(authors=specs.AuthorSpec(name="Aaron Turon"))),
+        specs.PaperSpec(
+            citing=specs.PaperSpec(authors=specs.AuthorSpec(name="Aaron Turon"))
+        ),
         ops.GetAllCiting(source=ops.FromS2ByAuthorByName(author="Aaron Turon")),
     ),
     Test(
@@ -156,7 +199,9 @@ testdata: list[Test] = [
         ops.Union(
             items=[
                 ops.GetAllCiting(source=ops.FromS2ByAuthorByName(author="Aaron Turon")),
-                ops.GetAllCiting(source=ops.FromS2ByAuthorByName(author="Guido Van Russom")),
+                ops.GetAllCiting(
+                    source=ops.FromS2ByAuthorByName(author="Guido Van Russom")
+                ),
             ]
         ),
     ),
@@ -169,7 +214,9 @@ testdata: list[Test] = [
             min_citations=100,
         ),
         ops.FilterByMetadata(
-            source=ops.GetAllReferences(source=ops.FromS2ByAuthorByName(author="Andrew Ng")),
+            source=ops.GetAllReferences(
+                source=ops.FromS2ByAuthorByName(author="Andrew Ng")
+            ),
             years=[specs.Years(start=2010, end=2020)],
             min_citations=100,
         ),
@@ -183,16 +230,21 @@ testdata: list[Test] = [
             min_citations=100,
         ),
         ops.FilterByMetadata(
-            source=ops.FromS2ByAuthorByName(author="Andrew Ng"), venue=["NeurIPS", "ICCV"], min_citations=100
+            source=ops.FromS2ByAuthorByName(author="Andrew Ng"),
+            venue=["NeurIPS", "ICCV"],
+            min_citations=100,
         ),
     ),
     Test(
         "Find by full name",
         "The DistilBERT paper",
         specs.PaperSpec(
-            name="DistilBERT", full_name="DistilBERT: A distilled version of BERT: smaller, faster, cheaper and lighter"
+            name="DistilBERT",
+            full_name="DistilBERT: A distilled version of BERT: smaller, faster, cheaper and lighter",
         ),
-        ops.FromS2ByTitle(name="DistilBERT: A distilled version of BERT: smaller, faster, cheaper and lighter"),
+        ops.FromS2ByTitle(
+            name="DistilBERT: A distilled version of BERT: smaller, faster, cheaper and lighter"
+        ),
     ),
     Test(
         "Cited by full name",
@@ -200,31 +252,39 @@ testdata: list[Test] = [
         specs.PaperSpec(
             venue="EMNLP",
             cited_by=specs.PaperSpec(
-                name="RoBERTa", full_name="RoBERTa: A Robustly Optimized BERT Pretraining Approach"
+                name="RoBERTa",
+                full_name="RoBERTa: A Robustly Optimized BERT Pretraining Approach",
             ),
         ),
         ops.FilterByMetadata(
             venue=["EMNLP"],
             source=ops.GetAllReferences(
-                source=ops.FromS2ByTitle(name="RoBERTa: A Robustly Optimized BERT Pretraining Approach")
+                source=ops.FromS2ByTitle(
+                    name="RoBERTa: A Robustly Optimized BERT Pretraining Approach"
+                )
             ),
         ),
     ),
     Test(
         "Filter by highly cited",
         "Highly cited papers by Glen Koch",
-        specs.PaperSpec(authors=specs.AuthorSpec(name="Glen Koch"), min_citations="high"),
+        specs.PaperSpec(
+            authors=specs.AuthorSpec(name="Glen Koch"), min_citations="high"
+        ),
         ops.FilterByHighlyCited(source=ops.FromS2ByAuthorByName(author="Glen Koch")),
     ),
     Test(
         "Filter by highly cited and more",
         "Highly cited journal papers by Glen Koch",
         specs.PaperSpec(
-            authors=specs.AuthorSpec(name="Glen Koch"), min_citations="high", publication_type="JournalArticle"
+            authors=specs.AuthorSpec(name="Glen Koch"),
+            min_citations="high",
+            publication_type="JournalArticle",
         ),
         ops.FilterByHighlyCited(
             source=ops.FilterByMetadata(
-                source=ops.FromS2ByAuthorByName(author="Glen Koch"), publication_types=["JournalArticle"]
+                source=ops.FromS2ByAuthorByName(author="Glen Koch"),
+                publication_types=["JournalArticle"],
             )
         ),
     ),
@@ -234,7 +294,8 @@ testdata: list[Test] = [
         specs.PaperSpec(
             authors=specs.AuthorSpec(name="Sebastian Ruder"),
             cited_by=specs.PaperSpec(
-                name="T5", full_name="Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer"
+                name="T5",
+                full_name="Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer",
             ),
         ),
         ops.FilterCitedBy(
@@ -258,7 +319,9 @@ testdata: list[Test] = [
                         name="T5",
                         full_name="Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer",
                     ),
-                    specs.PaperSpec(full_name="RoBERTa: A Robustly Optimized BERT Pretraining Approach"),
+                    specs.PaperSpec(
+                        full_name="RoBERTa: A Robustly Optimized BERT Pretraining Approach"
+                    ),
                 ],
             ),
         ),
@@ -275,7 +338,9 @@ testdata: list[Test] = [
                 ops.FilterCitedBy(
                     source=ops.FromS2ByAuthorByName(author="Sebastian Ruder"),
                     that_cite=ops.EnrichWithReferences(
-                        source=ops.FromS2ByTitle(name="RoBERTa: A Robustly Optimized BERT Pretraining Approach")
+                        source=ops.FromS2ByTitle(
+                            name="RoBERTa: A Robustly Optimized BERT Pretraining Approach"
+                        )
                     ),
                 ),
             ]
@@ -291,7 +356,8 @@ testdata: list[Test] = [
                     op="any_author_of",
                     items=[
                         specs.PaperSpec(
-                            name="BERT", full_name="Bidirectional Encoder Representations from Transformers"
+                            name="BERT",
+                            full_name="Bidirectional Encoder Representations from Transformers",
                         )
                     ],
                 ),
@@ -302,7 +368,9 @@ testdata: list[Test] = [
             source=ops.ByAuthorsOfPapers(
                 all_authors=False,
                 authors=ops.AuthorsOfPapers(
-                    papers=ops.FromS2ByTitle(name="Bidirectional Encoder Representations from Transformers")
+                    papers=ops.FromS2ByTitle(
+                        name="Bidirectional Encoder Representations from Transformers"
+                    )
                 ),
                 min_authors_of_papers=2,
             ),
@@ -312,18 +380,28 @@ testdata: list[Test] = [
     Test(
         "Author and any coauthor",
         "Papers by Mayer Goldberg and any coauthor",
-        specs.PaperSpec(authors=specs.AuthorSpec(name="Mayer Goldberg"), min_total_authors=2),
-        ops.FilterByMinTotalAuthors(source=ops.FromS2ByAuthorByName(author="Mayer Goldberg"), min_total_authors=2),
+        specs.PaperSpec(
+            authors=specs.AuthorSpec(name="Mayer Goldberg"), min_total_authors=2
+        ),
+        ops.FilterByMinTotalAuthors(
+            source=ops.FromS2ByAuthorByName(author="Mayer Goldberg"),
+            min_total_authors=2,
+        ),
     ),
     Test(
         "Fetch by FoS filter by venue group",
         "IEEE biology papers from 2010 to 2015 with more than 100 citations",
         specs.PaperSpec(
-            venue_group="IEEE", field_of_study="biology", years=specs.Years(start=2010, end=2015), min_citations=100
+            venue_group="IEEE",
+            field_of_study="biology",
+            years=specs.Years(start=2010, end=2015),
+            min_citations=100,
         ),
         ops.FilterByMetadata(
             source=ops.FromS2Search(
-                fields_of_study=["Biology"], time_range=specs.Years(start=2010, end=2015), min_citations=100
+                fields_of_study=["Biology"],
+                time_range=specs.Years(start=2010, end=2015),
+                min_citations=100,
             ),
             venue_group=["IEEE"],
         ),
@@ -350,7 +428,8 @@ testdata: list[Test] = [
             ),
             exclude=specs.PaperSpec(
                 citing=specs.PaperSpec(
-                    name="RoBERTa", full_name="RoBERTa: A Robustly Optimized BERT Pretraining Approach"
+                    name="RoBERTa",
+                    full_name="RoBERTa: A Robustly Optimized BERT Pretraining Approach",
                 )
             ),
         ),
@@ -362,7 +441,9 @@ testdata: list[Test] = [
                     )
                 )
             ),
-            citing=ops.FromS2ByTitle(name="RoBERTa: A Robustly Optimized BERT Pretraining Approach"),
+            citing=ops.FromS2ByTitle(
+                name="RoBERTa: A Robustly Optimized BERT Pretraining Approach"
+            ),
         ),
     ),
 ]
@@ -385,23 +466,34 @@ def test_filter_by_citing_multiple_specs() -> None:
                     op="and",
                     items=[
                         specs.PaperSpec(name="Attention"),
-                        specs.PaperSpec(authors=specs.AuthorSpec(name="Guido Van Russom")),
+                        specs.PaperSpec(
+                            authors=specs.AuthorSpec(name="Guido Van Russom")
+                        ),
                     ],
                 ),
             )
         ]
     )
-    enrich_refs = ops.EnrichWithReferences(source=ops.FromS2ByAuthorByName(author="Furu Wei"))
+    enrich_refs = ops.EnrichWithReferences(
+        source=ops.FromS2ByAuthorByName(author="Furu Wei")
+    )
     expected = ops.Intersect(
         items=[
-            ops.FilterCiting(source=enrich_refs, to_cite=ops.FromS2ByTitle(name="Attention")),
-            ops.FilterCiting(source=enrich_refs, to_cite=ops.FromS2ByAuthorByName(author="Guido Van Russom")),
+            ops.FilterCiting(
+                source=enrich_refs, to_cite=ops.FromS2ByTitle(name="Attention")
+            ),
+            ops.FilterCiting(
+                source=enrich_refs,
+                to_cite=ops.FromS2ByAuthorByName(author="Guido Van Russom"),
+            ),
         ]
     )
     result = plan(spec)
     assert result == expected
     match result:
-        case ops.Intersect(items=[ops.FilterCiting(source=s1), ops.FilterCiting(source=s2)]):
+        case ops.Intersect(
+            items=[ops.FilterCiting(source=s1), ops.FilterCiting(source=s2)]
+        ):
             assert s1 is s2
         case _:
             raise AssertionError("Unexpected result structure")

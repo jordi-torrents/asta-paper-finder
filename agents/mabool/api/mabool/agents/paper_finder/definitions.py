@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from ai2i.dcollection import CorpusId
-from pydantic import Field
-
 from mabool.data_model.agent import AgentInput, AgentOperationMode
 from mabool.data_model.aliases import NaturalLanguageText
+from pydantic import Field
 
 
 class PaperFinderInput(AgentInput):

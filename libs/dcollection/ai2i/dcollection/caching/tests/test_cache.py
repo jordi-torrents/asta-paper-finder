@@ -4,8 +4,6 @@ from typing import Any, AsyncIterator, ClassVar, List, cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from pydantic import Field
-
 from ai2i.common.utils.value import ValueNotSet
 from ai2i.dcollection import DocumentCollectionFactory
 from ai2i.dcollection.caching.cache import SubsetCache
@@ -17,6 +15,7 @@ from ai2i.dcollection.data_access_context import (
     SubsetCacheInterface,
 )
 from ai2i.dcollection.interface.collection import DocLoadingError
+from pydantic import Field
 
 
 class SampleEntity(DynamicallyLoadedEntity[str]):
@@ -57,7 +56,9 @@ def factory() -> DocumentCollectionFactory:
 
 
 @pytest.fixture(scope="function")
-async def subset_cache(factory: DocumentCollectionFactory) -> AsyncIterator[SubsetCacheInterface]:
+async def subset_cache(
+    factory: DocumentCollectionFactory,
+) -> AsyncIterator[SubsetCacheInterface]:
     cache = factory.cache()
     yield cache
     await cache.clear()
@@ -66,9 +67,15 @@ async def subset_cache(factory: DocumentCollectionFactory) -> AsyncIterator[Subs
 @pytest.fixture
 def entities() -> List[SampleEntity]:
     return [
-        SampleEntity(id="1", data="data1", more_data="more_data1", extra_data="extra_data1"),
-        SampleEntity(id="2", data="data2", more_data="more_data2", extra_data="extra_data2"),
-        SampleEntity(id="3", data="data3", more_data="more_data3", extra_data="extra_data3"),
+        SampleEntity(
+            id="1", data="data1", more_data="more_data1", extra_data="extra_data1"
+        ),
+        SampleEntity(
+            id="2", data="data2", more_data="more_data2", extra_data="extra_data2"
+        ),
+        SampleEntity(
+            id="3", data="data3", more_data="more_data3", extra_data="extra_data3"
+        ),
     ]
 
 
@@ -77,10 +84,16 @@ def to_field_reqs(fields: list[str]) -> list[FieldRequirements]:
 
 
 @pytest.mark.asyncio
-async def test_fetch_async_data_partial_cache_hit(entities: List[SampleEntity], subset_cache: SubsetCache) -> None:
+async def test_fetch_async_data_partial_cache_hit(
+    entities: List[SampleEntity], subset_cache: SubsetCache
+) -> None:
     with (
-        patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as mock_multi_get,
-        patch.object(subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set) as mock_multi_set,
+        patch.object(
+            subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+        ) as mock_multi_get,
+        patch.object(
+            subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set
+        ) as mock_multi_set,
     ):
         query_fn = AsyncMock(
             return_value=[
@@ -91,7 +104,9 @@ async def test_fetch_async_data_partial_cache_hit(entities: List[SampleEntity], 
 
         result = cast(
             list[SampleEntity],
-            await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data", "extra_data"])),
+            await subset_cache.fetch_async_data(
+                query_fn, entities, to_field_reqs(["data", "extra_data"])
+            ),
         )
 
         mock_multi_get.assert_called_once()
@@ -110,7 +125,9 @@ async def test_fetch_async_data_partial_cache_hit(entities: List[SampleEntity], 
 
 
 @pytest.mark.asyncio
-async def test_fetch_async_data_complete_cache_hit(entities: List[SampleEntity], subset_cache: SubsetCache) -> None:
+async def test_fetch_async_data_complete_cache_hit(
+    entities: List[SampleEntity], subset_cache: SubsetCache
+) -> None:
     await subset_cache.cache.multi_set(
         [
             (({"entity_id": "1"}, "data"), "data1"),
@@ -122,12 +139,16 @@ async def test_fetch_async_data_complete_cache_hit(entities: List[SampleEntity],
         ]
     )
 
-    with patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as mock_multi_get:
+    with patch.object(
+        subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+    ) as mock_multi_get:
         query_fn = AsyncMock()
 
         result = cast(
             list[SampleEntity],
-            await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data", "extra_data"])),
+            await subset_cache.fetch_async_data(
+                query_fn, entities, to_field_reqs(["data", "extra_data"])
+            ),
         )
 
         mock_multi_get.assert_called_once()
@@ -156,12 +177,16 @@ async def test_fetch_async_data_complete_cache_hit_with_none_marker(
         ]
     )
 
-    with patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as mock_multi_get:
+    with patch.object(
+        subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+    ) as mock_multi_get:
         query_fn = AsyncMock()
 
         result = cast(
             list[SampleEntity],
-            await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data", "extra_data"])),
+            await subset_cache.fetch_async_data(
+                query_fn, entities, to_field_reqs(["data", "extra_data"])
+            ),
         )
 
         mock_multi_get.assert_called_once()
@@ -176,16 +201,24 @@ async def test_fetch_async_data_complete_cache_hit_with_none_marker(
 
 
 @pytest.mark.asyncio
-async def test_fetch_async_data_complete_cache_miss(entities: List[SampleEntity], subset_cache: SubsetCache) -> None:
+async def test_fetch_async_data_complete_cache_miss(
+    entities: List[SampleEntity], subset_cache: SubsetCache
+) -> None:
     with (
-        patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as mock_multi_get,
-        patch.object(subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set) as mock_multi_set,
+        patch.object(
+            subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+        ) as mock_multi_get,
+        patch.object(
+            subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set
+        ) as mock_multi_set,
     ):
         query_fn = AsyncMock(return_value=entities)
 
         result = cast(
             list[SampleEntity],
-            await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data", "extra_data"])),
+            await subset_cache.fetch_async_data(
+                query_fn, entities, to_field_reqs(["data", "extra_data"])
+            ),
         )
 
         mock_multi_get.assert_called_once()
@@ -204,14 +237,18 @@ async def test_fetch_async_data_complete_cache_miss(entities: List[SampleEntity]
 async def test_fetch_async_data_empty_entities_list(subset_cache: SubsetCache) -> None:
     query_fn = AsyncMock()
 
-    result = await subset_cache.fetch_async_data(query_fn, [], to_field_reqs(["data", "extra_data"]))
+    result = await subset_cache.fetch_async_data(
+        query_fn, [], to_field_reqs(["data", "extra_data"])
+    )
 
     query_fn.assert_not_called()
     assert result == []
 
 
 @pytest.mark.asyncio
-async def test_fetch_async_data_empty_fields_list(entities: List[SampleEntity], subset_cache: SubsetCache) -> None:
+async def test_fetch_async_data_empty_fields_list(
+    entities: List[SampleEntity], subset_cache: SubsetCache
+) -> None:
     query_fn = AsyncMock()
 
     result = await subset_cache.fetch_async_data(query_fn, entities, [])
@@ -225,15 +262,21 @@ async def test_fetch_async_data_single_entity_and_field(
     subset_cache: SubsetCache,
 ) -> None:
     with (
-        patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as mock_multi_get,
-        patch.object(subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set) as mock_multi_set,
+        patch.object(
+            subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+        ) as mock_multi_get,
+        patch.object(
+            subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set
+        ) as mock_multi_set,
     ):
         entity = SampleEntity(id="1", data="data1")
         query_fn = AsyncMock(return_value=[SampleEntity(id="1", data="new_data1")])
 
         result = cast(
             list[SampleEntity],
-            await subset_cache.fetch_async_data(query_fn, [entity], to_field_reqs(["data"])),
+            await subset_cache.fetch_async_data(
+                query_fn, [entity], to_field_reqs(["data"])
+            ),
         )
 
         mock_multi_get.assert_called_once_with([({"entity_id": "1"}, "data")])
@@ -245,57 +288,63 @@ async def test_fetch_async_data_single_entity_and_field(
 @pytest.mark.asyncio
 async def test_put(entities: List[SampleEntity], subset_cache: SubsetCache) -> None:
     with (
-        patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as _,
-        patch.object(subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set) as mock_multi_set,
+        patch.object(
+            subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+        ) as _,
+        patch.object(
+            subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set
+        ) as mock_multi_set,
     ):
-        entity_with_some_none_value = SampleEntity(id="4", data="data4", more_data=None, extra_data="extra_data4")
+        entity_with_some_none_value = SampleEntity(
+            id="4", data="data4", more_data=None, extra_data="extra_data4"
+        )
         entities.append(entity_with_some_none_value)
-        await subset_cache.put(entities, to_field_reqs(["data", "extra_data", "invalid_field"]))
+        await subset_cache.put(
+            entities, to_field_reqs(["data", "extra_data", "invalid_field"])
+        )
         mock_multi_set.assert_called_once()
 
         query_fn = AsyncMock(return_value=[])
-        await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data", "extra_data"]))
+        await subset_cache.fetch_async_data(
+            query_fn, entities, to_field_reqs(["data", "extra_data"])
+        )
         assert query_fn.call_count == 0
 
 
 @pytest.mark.asyncio
-async def test_fetch_data_via_computed_field_name(entities: List[SampleEntity], subset_cache: SubsetCache) -> None:
+async def test_fetch_data_via_computed_field_name(
+    entities: List[SampleEntity], subset_cache: SubsetCache
+) -> None:
     with (
-        patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as mock_multi_get,
-        patch.object(subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set) as mock_multi_set,
+        patch.object(
+            subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+        ) as mock_multi_get,
+        patch.object(
+            subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set
+        ) as mock_multi_set,
     ):
         extra_data_computation_id = "extra_data_computation"
         extra_data_computation_id_hash = hash(extra_data_computation_id)
-        dynamic_fields_computation_ids = {
-            "extra_data": extra_data_computation_id,
-        }
+        dynamic_fields_computation_ids = {"extra_data": extra_data_computation_id}
         SampleEntity.dynamic_fields_computation_ids = dynamic_fields_computation_ids
         query_fn = AsyncMock(
             return_value=[
-                SampleEntity(
-                    id="1",
-                    data="new_data1",
-                    extra_data="new_extra_data1",
-                ),
-                SampleEntity(
-                    id="2",
-                    data="new_data2",
-                    extra_data="new_extra_data2",
-                ),
-                SampleEntity(
-                    id="3",
-                    data="data3",
-                    extra_data="extra_data3",
-                ),
+                SampleEntity(id="1", data="new_data1", extra_data="new_extra_data1"),
+                SampleEntity(id="2", data="new_data2", extra_data="new_extra_data2"),
+                SampleEntity(id="3", data="data3", extra_data="extra_data3"),
             ]
         )
 
         first_call_result = cast(
             list[SampleEntity],
-            await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data", "extra_data"])),
+            await subset_cache.fetch_async_data(
+                query_fn, entities, to_field_reqs(["data", "extra_data"])
+            ),
         )
         await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data"]))
-        await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["extra_data"]))
+        await subset_cache.fetch_async_data(
+            query_fn, entities, to_field_reqs(["extra_data"])
+        )
 
         assert mock_multi_get.call_count == 3
         assert mock_multi_get.call_args_list[0].args == (
@@ -381,42 +430,38 @@ async def test_fetch_data_with_multiple_computation_ids_for_same_field(
     entities: List[SampleEntity], subset_cache: SubsetCache
 ) -> None:
     with (
-        patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as mock_multi_get,
-        patch.object(subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set) as mock_multi_set,
+        patch.object(
+            subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+        ) as mock_multi_get,
+        patch.object(
+            subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set
+        ) as mock_multi_set,
     ):
         extra_data_computation_id = "extra_data_computation"
-        dynamic_fields_computation_ids = {
-            "extra_data": extra_data_computation_id,
-        }
+        dynamic_fields_computation_ids = {"extra_data": extra_data_computation_id}
         SampleEntity.dynamic_fields_computation_ids = dynamic_fields_computation_ids
 
         query_fn = AsyncMock(
             return_value=[
-                SampleEntity(
-                    id="1",
-                    data="new_data1",
-                    extra_data="new_extra_data1",
-                ),
-                SampleEntity(
-                    id="2",
-                    data="new_data2",
-                    extra_data="new_extra_data2",
-                ),
-                SampleEntity(
-                    id="3",
-                    data="data3",
-                    extra_data="extra_data3",
-                ),
+                SampleEntity(id="1", data="new_data1", extra_data="new_extra_data1"),
+                SampleEntity(id="2", data="new_data2", extra_data="new_extra_data2"),
+                SampleEntity(id="3", data="data3", extra_data="extra_data3"),
             ]
         )
 
-        await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data", "extra_data"]))
+        await subset_cache.fetch_async_data(
+            query_fn, entities, to_field_reqs(["data", "extra_data"])
+        )
 
         SampleEntity.dynamic_fields_computation_ids = {
-            "extra_data": "another_extra_data_computation",
+            "extra_data": "another_extra_data_computation"
         }
-        await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["extra_data"]))
-        await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["extra_data"]))
+        await subset_cache.fetch_async_data(
+            query_fn, entities, to_field_reqs(["extra_data"])
+        )
+        await subset_cache.fetch_async_data(
+            query_fn, entities, to_field_reqs(["extra_data"])
+        )
 
         assert mock_multi_get.call_count == 3
         assert mock_multi_set.call_count == 2
@@ -424,23 +469,35 @@ async def test_fetch_data_with_multiple_computation_ids_for_same_field(
 
 
 @pytest.mark.asyncio
-async def test_fetch_async_data_with_doc_loading_error(entities: List[SampleEntity], subset_cache: SubsetCache) -> None:
+async def test_fetch_async_data_with_doc_loading_error(
+    entities: List[SampleEntity], subset_cache: SubsetCache
+) -> None:
     """Test that DocLoadingError instances are not cached."""
     with (
-        patch.object(subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get) as mock_multi_get,
-        patch.object(subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set) as mock_multi_set,
+        patch.object(
+            subset_cache.cache, "multi_get", wraps=subset_cache.cache.multi_get
+        ) as mock_multi_get,
+        patch.object(
+            subset_cache.cache, "multi_set", wraps=subset_cache.cache.multi_set
+        ) as mock_multi_set,
     ):
-        error_entity = DocLoadingError(corpus_id="2", original_exception=Exception("Test error"))
+        error_entity = DocLoadingError(
+            corpus_id="2", original_exception=Exception("Test error")
+        )
 
         query_fn = AsyncMock(
             return_value=[
                 SampleEntity(id="1", data="new_data1", extra_data="new_extra_data1"),
-                SampleEntity(id="2", data=error_entity, extra_data=error_entity),  # This should not be cached
+                SampleEntity(
+                    id="2", data=error_entity, extra_data=error_entity
+                ),  # This should not be cached
                 SampleEntity(id="3", data="new_data3", extra_data="new_extra_data3"),
             ]
         )
 
-        result = await subset_cache.fetch_async_data(query_fn, entities, to_field_reqs(["data", "extra_data"]))
+        result = await subset_cache.fetch_async_data(
+            query_fn, entities, to_field_reqs(["data", "extra_data"])
+        )
         mock_multi_get.assert_called_once()
         mock_multi_set.assert_called_once()
         set_call_args = mock_multi_set.call_args[0][0]

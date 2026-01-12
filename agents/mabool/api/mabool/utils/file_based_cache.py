@@ -10,7 +10,9 @@ from aiocache.base import BaseCache
 logger = logging.getLogger(__name__)
 
 
-CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "cache")
+CACHE_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "cache"
+)
 
 
 def _get_current_git_sha() -> str:
@@ -26,7 +28,9 @@ class FileBasedCache(BaseCache):
     def _build_key(self, key: str, namespace: str | None = None) -> str:
         return hashlib.md5(key.encode()).hexdigest()
 
-    async def _get(self, key: str, encoding: str = "utf-8", _conn: Any = None) -> str | None:
+    async def _get(
+        self, key: str, encoding: str = "utf-8", _conn: Any = None
+    ) -> str | None:
         logger.info("looking for cached results.")
 
         # Generate cache key
@@ -51,7 +55,12 @@ class FileBasedCache(BaseCache):
             return None
 
     async def _set(
-        self, key: str, value: str, ttl: int | None = None, _cas_token: Any = None, _conn: Any = None
+        self,
+        key: str,
+        value: str,
+        ttl: int | None = None,
+        _cas_token: Any = None,
+        _conn: Any = None,
     ) -> None:
         # Generate cache key
         current_sha = _get_current_git_sha()

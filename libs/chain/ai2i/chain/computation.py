@@ -81,7 +81,9 @@ class ChainComputation(Generic[IN, OUT]):
             return ChainComputation(lambda _: RunnableLambda(runnable))
 
     @staticmethod
-    def suspend_runnable(builder: Callable[[], Runnable[A, B]]) -> ChainComputation[A, B]:
+    def suspend_runnable(
+        builder: Callable[[], Runnable[A, B]],
+    ) -> ChainComputation[A, B]:
         return ChainComputation(lambda _: builder())
 
     def build_runnable(self, mf: ModelRunnableFactory) -> Runnable[IN, OUT]:
@@ -94,7 +96,9 @@ class ChainComputation(Generic[IN, OUT]):
         return ChainComputation(_internal_with_trace_name)
 
     # Basic profunctor operations (manipulation of input and manipulation of output)
-    def dimap(self, f: Callable[[NEW_IN], IN], g: Callable[[OUT], NEW_OUT]) -> ChainComputation[NEW_IN, NEW_OUT]:
+    def dimap(
+        self, f: Callable[[NEW_IN], IN], g: Callable[[OUT], NEW_OUT]
+    ) -> ChainComputation[NEW_IN, NEW_OUT]:
         def _internal_dimap(mf: ModelRunnableFactory) -> Runnable[NEW_IN, NEW_OUT]:
             return RunnableLambda(f) | self._builder(mf) | RunnableLambda(g)
 
@@ -107,14 +111,20 @@ class ChainComputation(Generic[IN, OUT]):
         return ChainComputation(_internal_map)
 
     @overload
-    def contra_map(self, f: Callable[[NEW_IN], IN], /, input_type: None = None) -> ChainComputation[NEW_IN, OUT]:
+    def contra_map(
+        self, f: Callable[[NEW_IN], IN], /, input_type: None = None
+    ) -> ChainComputation[NEW_IN, OUT]:
         pass
 
     @overload
-    def contra_map(self, f: Callable[[Any], IN], /, input_type: Type[NEW_IN]) -> ChainComputation[NEW_IN, OUT]:
+    def contra_map(
+        self, f: Callable[[Any], IN], /, input_type: Type[NEW_IN]
+    ) -> ChainComputation[NEW_IN, OUT]:
         pass
 
-    def contra_map(self, f: Callable[[Any], Any], /, input_type: Type[Any] | None = None) -> ChainComputation[Any, OUT]:
+    def contra_map(
+        self, f: Callable[[Any], Any], /, input_type: Type[Any] | None = None
+    ) -> ChainComputation[Any, OUT]:
         def _internal_contra_map(mf: ModelRunnableFactory) -> Runnable[Any, OUT]:
             return RunnableLambda(f) | self._builder(mf)
 
@@ -122,18 +132,23 @@ class ChainComputation(Generic[IN, OUT]):
 
     # expose convenient pattern from Runnable
     def passthrough_input(self) -> ChainComputation[IN, tuple[IN, OUT]]:
-        def _internal_passthrough_input(mf: ModelRunnableFactory) -> Runnable[IN, tuple[IN, OUT]]:
+        def _internal_passthrough_input(
+            mf: ModelRunnableFactory,
+        ) -> Runnable[IN, tuple[IN, OUT]]:
             return RunnableParallel(
-                first=RunnablePassthrough(),
-                second=self._builder(mf),
+                first=RunnablePassthrough(), second=self._builder(mf)
             ) | RunnableLambda(dict2tuple)
 
         return ChainComputation(_internal_passthrough_input)
 
     # Cartesian profunctor (allow passthrough of additional information, not digested by the computation)
     # NOTE: a.k.a second in profunctor docs
-    def passthrough_as_first(self, pt: Type[N]) -> ChainComputation[tuple[N, IN], tuple[N, OUT]]:
-        def _internal_passthrough_first(mf: ModelRunnableFactory) -> Runnable[tuple[N, IN], tuple[N, OUT]]:
+    def passthrough_as_first(
+        self, pt: Type[N]
+    ) -> ChainComputation[tuple[N, IN], tuple[N, OUT]]:
+        def _internal_passthrough_first(
+            mf: ModelRunnableFactory,
+        ) -> Runnable[tuple[N, IN], tuple[N, OUT]]:
             return RunnableParallel(
                 first=RunnablePassthrough() | RunnableLambda(itemgetter(0)),
                 second=RunnableLambda(itemgetter(1)) | self._builder(mf),
@@ -142,8 +157,12 @@ class ChainComputation(Generic[IN, OUT]):
         return ChainComputation(_internal_passthrough_first)
 
     # NOTE: a.k.a first in profunctor docs
-    def passthrough_as_second(self, pt: Type[N]) -> ChainComputation[tuple[IN, N], tuple[OUT, N]]:
-        def _internal_passthrough_second(mf: ModelRunnableFactory) -> Runnable[tuple[IN, N], tuple[OUT, N]]:
+    def passthrough_as_second(
+        self, pt: Type[N]
+    ) -> ChainComputation[tuple[IN, N], tuple[OUT, N]]:
+        def _internal_passthrough_second(
+            mf: ModelRunnableFactory,
+        ) -> Runnable[tuple[IN, N], tuple[OUT, N]]:
             return RunnableParallel(
                 first=RunnableLambda(itemgetter(0)) | self._builder(mf),
                 second=RunnablePassthrough() | RunnableLambda(itemgetter(1)),
@@ -152,19 +171,27 @@ class ChainComputation(Generic[IN, OUT]):
         return ChainComputation(_internal_passthrough_second)
 
     # Pipe prompts
-    def pipe_to(self, p: ChainComputation[OUT, NEW_OUT]) -> ChainComputation[IN, NEW_OUT]:
+    def pipe_to(
+        self, p: ChainComputation[OUT, NEW_OUT]
+    ) -> ChainComputation[IN, NEW_OUT]:
         def _internal_and_then(mf: ModelRunnableFactory) -> Runnable[IN, NEW_OUT]:
             return self._builder(mf) | p._builder(mf)
 
         return ChainComputation(_internal_and_then)
 
     # sequencing operator
-    def __or__(self, p: ChainComputation[OUT, NEW_OUT]) -> ChainComputation[IN, NEW_OUT]:
+    def __or__(
+        self, p: ChainComputation[OUT, NEW_OUT]
+    ) -> ChainComputation[IN, NEW_OUT]:
         return self.pipe_to(p)
 
     # Parallel execution
-    def in_parllel_with(self, p: ChainComputation[IN2, OUT2]) -> ChainComputation[tuple[IN, IN2], tuple[OUT, OUT2]]:
-        def _internal_in_parallel_with(mf: ModelRunnableFactory) -> Runnable[tuple[IN, IN2], tuple[OUT, OUT2]]:
+    def in_parllel_with(
+        self, p: ChainComputation[IN2, OUT2]
+    ) -> ChainComputation[tuple[IN, IN2], tuple[OUT, OUT2]]:
+        def _internal_in_parallel_with(
+            mf: ModelRunnableFactory,
+        ) -> Runnable[tuple[IN, IN2], tuple[OUT, OUT2]]:
             return RunnableParallel(
                 first=RunnableLambda(itemgetter(0)) | self._builder(mf),
                 second=RunnableLambda(itemgetter(1)) | p._builder(mf),
@@ -172,17 +199,22 @@ class ChainComputation(Generic[IN, OUT]):
 
         return ChainComputation(_internal_in_parallel_with)
 
-    def product(self, p: ChainComputation[IN, OUT2]) -> ChainComputation[IN, tuple[OUT, OUT2]]:
-        def _internal_product(mf: ModelRunnableFactory) -> Runnable[IN, tuple[OUT, OUT2]]:
+    def product(
+        self, p: ChainComputation[IN, OUT2]
+    ) -> ChainComputation[IN, tuple[OUT, OUT2]]:
+        def _internal_product(
+            mf: ModelRunnableFactory,
+        ) -> Runnable[IN, tuple[OUT, OUT2]]:
             return RunnableParallel(
-                first=self._builder(mf),
-                second=p._builder(mf),
+                first=self._builder(mf), second=p._builder(mf)
             ) | RunnableLambda(dict2tuple)
 
         return ChainComputation(_internal_product)
 
     # product operator
-    def __pow__(self, p: ChainComputation[IN, OUT2]) -> ChainComputation[IN, tuple[OUT, OUT2]]:
+    def __pow__(
+        self, p: ChainComputation[IN, OUT2]
+    ) -> ChainComputation[IN, tuple[OUT, OUT2]]:
         return self.product(p)
 
     # Applicative map_n (2 arguments variant)
@@ -305,7 +337,9 @@ class ChainComputation(Generic[IN, OUT]):
     @overload
     @staticmethod
     def map_n(
-        f: Callable[[OUT1, OUT2, OUT3, OUT4, OUT5, OUT6, OUT7, OUT8, OUT9, OUT10], NEW_OUT],
+        f: Callable[
+            [OUT1, OUT2, OUT3, OUT4, OUT5, OUT6, OUT7, OUT8, OUT9, OUT10], NEW_OUT
+        ],
         p1: ChainComputation[IN2, OUT1],
         p2: ChainComputation[IN2, OUT2],
         p3: ChainComputation[IN2, OUT3],
@@ -324,7 +358,10 @@ class ChainComputation(Generic[IN, OUT]):
     @overload
     @staticmethod
     def map_n(
-        f: Callable[[OUT1, OUT2, OUT3, OUT4, OUT5, OUT6, OUT7, OUT8, OUT9, OUT10, OUT11], NEW_OUT],
+        f: Callable[
+            [OUT1, OUT2, OUT3, OUT4, OUT5, OUT6, OUT7, OUT8, OUT9, OUT10, OUT11],
+            NEW_OUT,
+        ],
         p1: ChainComputation[IN2, OUT1],
         p2: ChainComputation[IN2, OUT2],
         p3: ChainComputation[IN2, OUT3],
@@ -348,14 +385,21 @@ class ChainComputation(Generic[IN, OUT]):
         def _map_n_f_application(input: dict[str, Any]) -> Any:
             # inputs are a dictionary from index (as string) to result, we first need to convert the results
             # into an ordered list based on the indexes
-            ordered_inputs = tuple(x[1] for x in sorted([(int(si), n) for si, n in input.items()], key=lambda x: x[0]))
+            ordered_inputs = tuple(
+                x[1]
+                for x in sorted(
+                    [(int(si), n) for si, n in input.items()], key=lambda x: x[0]
+                )
+            )
             return f(*ordered_inputs)  # type: ignore
 
         def _internal_product(mf: ModelRunnableFactory) -> Runnable[IN2, Any]:
-            ps_dict = {str(i): p for i, p in enumerate([p.build_runnable(mf) for p in ps])}
-            return RunnableParallel(ps_dict) | RunnableLambda(_map_n_f_application).with_config(
-                {"run_name": "map_n: apply f"}
-            )
+            ps_dict = {
+                str(i): p for i, p in enumerate([p.build_runnable(mf) for p in ps])
+            }
+            return RunnableParallel(ps_dict) | RunnableLambda(
+                _map_n_f_application
+            ).with_config({"run_name": "map_n: apply f"})
 
         return ChainComputation(_internal_product)
 
