@@ -136,7 +136,7 @@ def explain_query_analysis(
 
         has_relevance_criteria = (
             analyzed_input.relevance_criteria
-            and analyzed_input.relevance_criteria.required_relevance_critieria
+            and analyzed_input.relevance_criteria.required_relevance_criteria
             and not (
                 analyzed_input.relevance_criteria.clarification_questions
                 or analyzed_input.relevance_criteria.is_default()
@@ -148,11 +148,11 @@ def explain_query_analysis(
 
             sorted_criteria = (
                 sorted(
-                    analyzed_input.relevance_criteria.required_relevance_critieria,
+                    analyzed_input.relevance_criteria.required_relevance_criteria,
                     key=lambda x: x.weight,
                     reverse=True,
                 )
-                if analyzed_input.relevance_criteria.required_relevance_critieria
+                if analyzed_input.relevance_criteria.required_relevance_criteria
                 else []
             )
 

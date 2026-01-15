@@ -40,7 +40,7 @@ def verbalize_venues(venues: list[str]) -> str | None:
 def verbalize_relevance_criteria(
     criteria: RelevanceCriteria, show_nice_to_have: bool = False
 ) -> str | None:
-    required = criteria.required_relevance_critieria or []
+    required = criteria.required_relevance_criteria or []
     nice_to_have = criteria.nice_to_have_relevance_criteria or []
     response: list[str] = []
     if len(required) > 0:

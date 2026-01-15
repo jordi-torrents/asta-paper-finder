@@ -75,7 +75,7 @@ class SortPreferences:
         if (
             self.consider_content_relevance
             and self.relevance_criteria
-            and self.relevance_criteria.required_relevance_critieria
+            and self.relevance_criteria.required_relevance_criteria
         ):
             fields: list[
                 DocumentFieldName | BaseComputedField[DocumentFieldName, Any]

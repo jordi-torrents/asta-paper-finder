@@ -504,9 +504,9 @@ The criteria should only refer to the content of the paper, ignoring all metadat
 * Words that describe the impact of the paper, such as "central", "seminal", "influential"
 * Venues, such as ACL, EMNLP, AAAI.
 
-Output a json with key "required_relevance_critieria", with its value a list of criteria.
+Output a json with key "required_relevance_criteria", with its value a list of criteria.
 Each criterion must have a "name" key, a "description" key, and a "weight" key (0-1). The sum of these weights should be equal to 1.
-"required_relevance_critieria" must appear in the output json.
+"required_relevance_criteria" must appear in the output json.
 The json can contain another key "nice_to_have_relevance_criteria", with the same type of value, only here the weights don't have to sum to 1.
 
 If the query is too ambiguous to devise a good set of criteria, please ask clarification questions.
@@ -516,34 +516,34 @@ Only ask necessary questions, and try to keep them as simple as possible.
 
 
 class IdentifyRelevanceCriteriaOutput(BaseModel):
-    required_relevance_critieria: Optional[list[RelevanceCriterion]] = None
+    required_relevance_criteria: Optional[list[RelevanceCriterion]] = None
     nice_to_have_relevance_criteria: Optional[list[RelevanceCriterion]] = None
     clarification_questions: Optional[list[str]] = None
 
     @model_validator(mode="after")
     def check_at_least_one_not_none(self) -> IdentifyRelevanceCriteriaOutput:
         if (
-            self.required_relevance_critieria is None
+            self.required_relevance_criteria is None
             and self.clarification_questions is None
         ):
             raise ValueError(
-                "At least one of 'required_relevance_critieria' or 'clarification_questions' must be provided."
+                "At least one of 'required_relevance_criteria' or 'clarification_questions' must be provided."
             )
         return self
 
     @model_validator(mode="after")
     def check_all_criterion_names_are_distinct(self) -> IdentifyRelevanceCriteriaOutput:
         criterion_names = set()
-        if self.required_relevance_critieria is not None:
+        if self.required_relevance_criteria is not None:
             criterion_names |= {
-                criterion.name for criterion in self.required_relevance_critieria
+                criterion.name for criterion in self.required_relevance_criteria
             }
         if self.nice_to_have_relevance_criteria is not None:
             criterion_names |= {
                 criterion.name for criterion in self.nice_to_have_relevance_criteria
             }
 
-        if len(criterion_names) != len(self.required_relevance_critieria or []) + len(
+        if len(criterion_names) != len(self.required_relevance_criteria or []) + len(
             self.nice_to_have_relevance_criteria or []
         ):
             raise ValueError("Criterion names must be distinct.")
@@ -551,9 +551,9 @@ class IdentifyRelevanceCriteriaOutput(BaseModel):
 
     @model_validator(mode="after")
     def check_weights_sum_to_one(self) -> IdentifyRelevanceCriteriaOutput:
-        if self.required_relevance_critieria is not None:
+        if self.required_relevance_criteria is not None:
             if (
-                sum(criterion.weight for criterion in self.required_relevance_critieria)
+                sum(criterion.weight for criterion in self.required_relevance_criteria)
                 != 1
             ):
                 raise ValueError(
@@ -568,7 +568,7 @@ def _map_relevance_criteria_output(
     query, output = t
     return RelevanceCriteria(
         query=query["query"],
-        required_relevance_critieria=output.required_relevance_critieria,
+        required_relevance_criteria=output.required_relevance_criteria,
         nice_to_have_relevance_criteria=output.nice_to_have_relevance_criteria,
         clarification_questions=output.clarification_questions,
     )

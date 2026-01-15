@@ -397,7 +397,7 @@ class RelevanceCriterion(BaseModel):
 
 class RelevanceCriteria(BaseModel):
     query: str
-    required_relevance_critieria: list[RelevanceCriterion] | None = None
+    required_relevance_criteria: list[RelevanceCriterion] | None = None
     nice_to_have_relevance_criteria: list[RelevanceCriterion] | None = None
     clarification_questions: list[str] | None = None
 
@@ -407,8 +407,8 @@ class RelevanceCriteria(BaseModel):
         self, include_nice_to_have: bool = True
     ) -> list[RelevanceCriterion]:
         return (
-            self.required_relevance_critieria
-            if self.required_relevance_critieria
+            self.required_relevance_criteria
+            if self.required_relevance_criteria
             else []
         ) + (
             self.nice_to_have_relevance_criteria
@@ -418,9 +418,9 @@ class RelevanceCriteria(BaseModel):
 
     def is_default(self) -> bool:
         return (
-            self.required_relevance_critieria is not None
-            and len(self.required_relevance_critieria) == 1
-            and self.required_relevance_critieria[0].name
+            self.required_relevance_criteria is not None
+            and len(self.required_relevance_criteria) == 1
+            and self.required_relevance_criteria[0].name
             == DEFAULT_CONTENT_RELEVANCE_CRITERION_NAME
         )
 
@@ -429,8 +429,8 @@ class RelevanceCriteria(BaseModel):
         relevance_criteria: RelevanceCriteria, content: str
     ) -> RelevanceCriteria:
         return RelevanceCriteria(
-            **relevance_criteria.model_dump(exclude={"required_relevance_critieria"}),
-            required_relevance_critieria=[
+            **relevance_criteria.model_dump(exclude={"required_relevance_criteria"}),
+            required_relevance_criteria=[
                 RelevanceCriterion(
                     name=DEFAULT_CONTENT_RELEVANCE_CRITERION_NAME,
                     description=content,
@@ -444,7 +444,7 @@ class RelevanceCriteria(BaseModel):
             return False
         return bool(
             self.query == other.query
-            and self.required_relevance_critieria == other.required_relevance_critieria
+            and self.required_relevance_criteria == other.required_relevance_criteria
             and self.nice_to_have_relevance_criteria
             == other.nice_to_have_relevance_criteria
             and self.clarification_questions == other.clarification_questions
@@ -454,7 +454,7 @@ class RelevanceCriteria(BaseModel):
         return hash(
             (
                 self.query,
-                tuple(self.required_relevance_critieria or []),
+                tuple(self.required_relevance_criteria or []),
                 tuple(self.nice_to_have_relevance_criteria or []),
                 tuple(self.clarification_questions or []),
             )

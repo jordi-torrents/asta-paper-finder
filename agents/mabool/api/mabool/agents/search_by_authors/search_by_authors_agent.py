@@ -326,7 +326,7 @@ class SearchByAuthorsAgent(
             or (
                 user_content_input
                 and relevance_criteria is not None
-                and relevance_criteria.required_relevance_critieria
+                and relevance_criteria.required_relevance_criteria
             )
         ):
             results = await filter_docs_by_metadata(
@@ -336,7 +336,7 @@ class SearchByAuthorsAgent(
             if (
                 user_content_input
                 and relevance_criteria is not None
-                and relevance_criteria.required_relevance_critieria
+                and relevance_criteria.required_relevance_criteria
             ):
                 quota = config_value(
                     cfg_schema.search_by_author_agent.relevance_judgements_quota

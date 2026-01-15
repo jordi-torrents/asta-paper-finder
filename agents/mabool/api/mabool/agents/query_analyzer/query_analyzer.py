@@ -133,7 +133,7 @@ async def analyze(
 
     failure_to_identify_criteria = False
 
-    if extracted_content and not relevance_criteria.required_relevance_critieria:
+    if extracted_content and not relevance_criteria.required_relevance_criteria:
         logger.warning(
             "No relevance criteria, but content was extracted. Using content as single relevance criterion."
         )
