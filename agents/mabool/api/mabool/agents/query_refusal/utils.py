@@ -62,7 +62,7 @@ If the query is "no, please try this new query...", return {"choice": null}.
 
 choice: ChainComputation[str, bool | None] = (
     define_chat_llm_call(
-        [system_message(_choice_prompt), user_message("{{query}}")],
+        [system_message(_choice_prompt), user_message("{{&query}}")],
         format="mustache",
         input_type=InputQuery,
         output_type=Choice,

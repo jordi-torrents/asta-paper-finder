@@ -28,10 +28,10 @@ This clarifications should help, whenever necessary, disambiguate the query, \
 or provide context for potentially under-specified terms. \
 The additions should be kept minimal and not change the main intent of the original query.
 
-Original Query: {{query}}
+Original Query: {{&query}}
 
 Anchor Documents:
-{{anchors_markdown}}
+{{&anchors_markdown}}
 """
 
 combined_anchor_query = define_prompt_llm_call(

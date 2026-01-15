@@ -65,7 +65,7 @@ Output a JSON:
 
 Criteria:
 ```
-{{{criteria}}}
+{{&criteria}}
 ```"""
 
 
@@ -158,7 +158,7 @@ def _create_relevance_judgement_chain(
                 system_message(
                     relevance_criteria_judgement_prompt_with_relevant_snippets_after
                 ),
-                user_message("{{document}}"),
+                user_message("{{&document}}"),
             ],
             format="mustache",
             input_type=DocumentRelevanceInput,

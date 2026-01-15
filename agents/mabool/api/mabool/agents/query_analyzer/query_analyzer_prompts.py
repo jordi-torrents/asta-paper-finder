@@ -86,7 +86,7 @@ Output a refusal type in a Json like: {"type": string or null}
 """
 
 _check_refusal = define_chat_llm_call(
-    [system_message(_check_refusal_prompt_tmpl), user_message("{{query}}")],
+    [system_message(_check_refusal_prompt_tmpl), user_message("{{&query}}")],
     format="mustache",
     input_type=InputQueryJson,
     output_type=PossibleRefusal,
@@ -109,7 +109,7 @@ Fields of study: """
 Extract all possible fields of study, but divide it to a single most prominent main field and a (possibly empty) list of other relevant key fields.
 Use Unknown only if no field-of-study is assignable.
 
-{{query_json}}
+{{&query_json}}
 """
 )
 
@@ -175,7 +175,7 @@ Reason: "latest research" is time metadata
 Reason: The query consists of metadata only"""  # noqa: E501
 
 _content_extraction = define_chat_llm_call(
-    [system_message(_content_extraction_prompt_tmpl), user_message("{{query_json}}")],
+    [system_message(_content_extraction_prompt_tmpl), user_message("{{&query_json}}")],
     format="mustache",
     input_type=InputQueryJson,
     output_type=ExtractedContent,
@@ -222,7 +222,7 @@ Reason: The author mentioned is not requested to be the author of the paper, but
 """
 
 _author_extraction = define_chat_llm_call(
-    [system_message(_author_extraction_prompt_tmpl), user_message("{{query_json}}")],
+    [system_message(_author_extraction_prompt_tmpl), user_message("{{&query_json}}")],
     format="mustache",
     input_type=InputQueryJson,
     output_type=ExtractedAuthors,
@@ -259,7 +259,7 @@ Reason: ACL may refer to a collection of venues, try to provide a comprehensive 
 """  # noqa: E501
 
 _venue_extraction = define_chat_llm_call(
-    [system_message(_venue_extraction_prompt_tmpl), user_message("{{query_json}}")],
+    [system_message(_venue_extraction_prompt_tmpl), user_message("{{&query_json}}")],
     format="mustache",
     input_type=InputQueryJson,
     output_type=ExtractedVenues,
@@ -308,7 +308,7 @@ def _map_extracted_recency(r: RecentOrEarlyType) -> ExtractedRecency:
 
 
 _recency_extraction = define_chat_llm_call(
-    [system_message(_recency_extraction_prompt_tmpl), user_message("{{query_json}}")],
+    [system_message(_recency_extraction_prompt_tmpl), user_message("{{&query_json}}")],
     format="mustache",
     input_type=InputQueryJson,
     output_type=RecentOrEarlyType,
@@ -350,7 +350,7 @@ If the query asks for central papers, return the JSON object {"centrality": "fir
 _centrality_extraction = define_chat_llm_call(
     [
         system_message(_centrality_extraction_prompt_tmpl),
-        user_message("{{query_json}}"),
+        user_message("{{&query_json}}"),
     ],
     format="mustache",
     input_type=InputQueryJson,
@@ -382,7 +382,7 @@ Reason: the last 3 years are 2025, 2024, and 2023
 {"start": 2024, "end": 2024}"""  # noqa: E501
 
 _time_range = define_chat_llm_call(
-    [system_message(_time_range_prompt_tmpl), user_message("{{query_json}}")],
+    [system_message(_time_range_prompt_tmpl), user_message("{{&query_json}}")],
     format="mustache",
     input_type=InputQueryJson,
     output_type=ExtractedYearlyTimeRange,
@@ -448,7 +448,7 @@ def _to_broad_or_specific_type(udt: UniqueOrDescType) -> BroadOrSpecificType:
 _broad_or_specific_query_type = define_chat_llm_call(
     [
         system_message(_broad_or_specific_query_type_prompt_tmpl),
-        user_message("{{query_json}}"),
+        user_message("{{&query_json}}"),
     ],
     format="mustache",
     input_type=InputQueryJson,
@@ -483,7 +483,7 @@ If the query is looking for a paper by name, return the JSON object {"type": "ti
 _by_title_or_name_query_type = define_chat_llm_call(
     [
         system_message(_by_title_or_name_query_type_prompt_tmpl),
-        user_message("{{query_json}}"),
+        user_message("{{&query_json}}"),
     ],
     format="mustache",
     input_type=InputQueryJson,
@@ -578,7 +578,7 @@ _identify_relevance_criteria = (
     define_chat_llm_call(
         [
             system_message(_identify_relevance_criteria_prompt_tmpl),
-            user_message("{{query}}"),
+            user_message("{{&query}}"),
         ],
         format="mustache",
         input_type=InputQueryJson,
@@ -598,7 +598,7 @@ extract_specifications_path = _my_dir / "extract_specifications.md"
 with open(extract_specifications_path, "r") as fp:
     _extract_specification_prompt = fp.read()
 specification_extraction = define_chat_llm_call(
-    [system_message(_extract_specification_prompt), user_message("{{query}}")],
+    [system_message(_extract_specification_prompt), user_message("{{&query}}")],
     format="mustache",
     input_type=InputQueryJson,
     output_type=Specifications,

@@ -131,9 +131,9 @@ from ai2i.chain import define_prompt_llm_call
 # Using Mustache templates
 classify_mustache = define_prompt_llm_call(
     """
-    Classify the following text into one of these categories: {{categories}}
+    Classify the following text into one of these categories: {{&categories}}
 
-    Text: {{text}}
+    Text: {{&text}}
     """,
     input_type=ClassifyParams,
     output_type=Classification,

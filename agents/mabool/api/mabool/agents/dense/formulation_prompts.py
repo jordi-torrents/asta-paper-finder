@@ -47,7 +47,7 @@ dense_formulate = define_prompt_llm_call(
 ).map(lambda o: o.alternative_queries)
 
 _alternative_dense_formulation_prompt_tmpl = """
-Your task is to come up with up to {{max_output}} alternative search queries that will help find passages that answer the following search query.
+Your task is to come up with up to {{&max_output}} alternative search queries that will help find passages that answer the following search query.
 The queries will be run on a dense index that contains passages from academic research papers.
 I am NOT looking for simple synonym paraphrases of common words, as these are captured by the index embeddings. Try using some reasoning to come up with interesting new ways to answer the original query.
 Make sure you use wording that is actually used within the searched for domain. Don't just give arbitrary synonyms.
@@ -68,7 +68,7 @@ Output a json with a single key "alternative_queries" with its value a list of q
 dense_formulate_alternative = define_chat_llm_call(
     [
         system_message(_alternative_dense_formulation_prompt_tmpl),
-        user_message("{{search_query}}"),
+        user_message("{{&search_query}}"),
     ],
     format="mustache",
     input_type=FormulateDenseQueriesInput,

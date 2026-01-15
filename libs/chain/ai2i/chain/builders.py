@@ -107,7 +107,7 @@ def define_prompt_llm_call(
     if format == "f-string":
         template_with_format = template.lstrip() + "\n{format_instructions}"
     else:  # format == mustache
-        template_with_format = template.lstrip() + "\n{{format_instructions}}"
+        template_with_format = template.lstrip() + "\n{{&format_instructions}}"
 
     # suspend the creation of the prompt, because we want the 'get_extra_params' to be called when application
     # is running and not during the define (otherwise there is no config in context fo the get_extra_params to read it)
