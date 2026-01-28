@@ -215,16 +215,16 @@ def _align_ref_mentions(
     sentence_idx_to_ref_mentions: dict[int, list[RefMention]] = defaultdict(list)
     for ref in snippet.ref_mentions:
         if (
-            not snippet.sentences
-            or not ref.within_snippet_offset_start
-            or not ref.within_snippet_offset_end
+            not sentences
+            or ref.within_snippet_offset_start is None
+            or ref.within_snippet_offset_end is None
         ):
             continue
         for i, offset in enumerate(sentence_offsets):
             if (
-                not offset.within_snippet_offset
-                or not offset.within_snippet_offset.start
-                or not offset.within_snippet_offset.end
+                offset.within_snippet_offset is None
+                or offset.within_snippet_offset.start is None
+                or offset.within_snippet_offset.end is None
             ):
                 continue
             if (
@@ -414,7 +414,7 @@ async def run_snippet_snowball(
         logger.info("=== Snippet snowball ===")
         citation_contexts = get_citation_contexts_from_snippets(doc_collection)
         cited_corpus_ids_scores = get_cited_corpus_ids_scores(doc_collection)
-        cited_corpus_ids_scores = {
+        cited_corpus_ids_scores = {  # this is no longer needed
             k: v
             for k, v in cited_corpus_ids_scores.items()
             if k in citation_contexts and citation_contexts[k]
