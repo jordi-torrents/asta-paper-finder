@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from typing import Any
+from typing import Any, Iterable
 
 import pandas as pd
 from ai2i.dcollection import (
@@ -297,7 +297,7 @@ def split_snippets_to_sentence_snippets(snippet: Snippet) -> list[Snippet]:
     return sentences
 
 
-def _flatten(lst: list[Any]) -> list[Any]:
+def _flatten[T](lst: Iterable[Iterable[T]]) -> list[T]:
     return [item for sublist in lst for item in sublist]
 
 
