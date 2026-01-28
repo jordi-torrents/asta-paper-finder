@@ -91,7 +91,7 @@ async def get_specific_paper_by_title(
 
     if authors:
         search_results = search_results.filter(
-            lambda doc: filter_by_author(authors, doc)
+            lambda doc: filter_by_author(doc, authors)
         )
 
     return search_results, extracted_title

@@ -276,7 +276,7 @@ class SearchByAuthorsAgent(
 
         # filter results by author matches
         results = results.filter(
-            lambda doc: filter_by_author(authors, doc, keep_missing=False)
+            lambda doc: filter_by_author(doc, authors, keep_missing=False)
         )
         return results
 

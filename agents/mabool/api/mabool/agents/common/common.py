@@ -102,7 +102,7 @@ def filter_by_venues(
 
 
 def filter_by_author(
-    expected_authors: list[str], doc: Document, keep_missing: bool | None = False
+    doc: Document, expected_authors: list[str], keep_missing: bool | None = False
 ) -> bool:
     if not expected_authors:
         return True
